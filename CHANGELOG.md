@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+- Stream a concise answer first, with Say this / Next step / Explain more prepared in the same request and revealed by rounded local-action chips.
+- Show the user's question above the overlay answer, keep streaming anchored at the top, and preserve manual scrolling without bottom jumps.
+- Make the answer area more transparent than the input bar and render Markdown block headings, lists and code cleanly.
+- Preserve optional reply views in local history and exports, with compatibility for earlier sessions and providers that return plain text.
+
 - Hide native scrollbar tracks and indicators while retaining trackpad, wheel and keyboard scrolling.
 - Refresh Gemini's paginated generation-model catalog from the selected endpoint, with header-only credentials and redirect blocking.
 - Update Gemini suggestions, normalize model IDs, and explain model-access, authorization, quota and endpoint failures with redacted Google diagnostics.

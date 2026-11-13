@@ -33,8 +33,13 @@ struct OverlayView: View {
     var close: () -> Void
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     var latestAnswer: ChatMessage? { model.session.messages.last(where: { $0.role == "assistant" }) }
+    var latestQuestion: ChatMessage? {
+        guard let answer = latestAnswer, let index = model.session.messages.firstIndex(where: { $0.id == answer.id }) else { return nil }
+        return model.session.messages[..<index].last(where: { $0.role == "user" })
+    }
     var body: some View {
         VStack(spacing: 0) {
+            VStack(spacing: 0) {
             HStack(alignment: .center, spacing: 12) {
                 TextField("Ask anything about your screen or conversation…", text: $model.prompt, axis: .vertical)
                     .textFieldStyle(.plain).font(.system(size: 14, weight: .medium)).lineLimit(1...2)
@@ -68,28 +73,34 @@ struct OverlayView: View {
                 }
                 Button(action: close) { Image(systemName: "xmark").font(.system(size: 11)) }.buttonStyle(IconPress()).help("Hide assistant · ⌃⌥Space")
             }.foregroundStyle(Ink.muted).padding(.horizontal, 18).frame(height: 42)
+            }.background(Ink.background.opacity(model.config.overlayOpacity))
             if let image = model.pendingImage, let nsImage = NSImage(data: image) {
                 Rectangle().fill(Ink.line).frame(height: 1)
                 HStack(spacing: 12) {
                     Image(nsImage: nsImage).resizable().scaledToFit().frame(width: 94, height: 58).clipShape(RoundedRectangle(cornerRadius: 7))
                     VStack(alignment: .leading, spacing: 5) { Text("Screenshot attached").font(.system(size: 11, weight: .semibold)); Text("Sent with your next question to \(model.endpointHost).").font(.system(size: 9)).foregroundStyle(Ink.muted) }
                     Spacer(); Button { model.pendingImage = nil } label: { Image(systemName: "xmark.circle.fill").font(.system(size: 14)).foregroundStyle(Ink.muted) }.buttonStyle(IconPress()).help("Remove screenshot")
-                }.padding(12)
+                }.padding(12).background(Ink.background.opacity(model.config.overlayOpacity))
             }
             if model.overlayExpanded {
                 Rectangle().fill(Ink.line).frame(height: 1)
-                VStack(alignment: .leading, spacing: 12) {
-                    HStack { Text("VELIN").font(.system(size: 9, weight: .bold)).tracking(1.7).foregroundStyle(Ink.mint); if model.generating { ProgressView().controlSize(.mini) }; Spacer(); if let answer = latestAnswer, !answer.text.isEmpty { Button { NSPasteboard.general.clearContents(); NSPasteboard.general.setString(answer.text, forType: .string); model.notice = "Copied response." } label: { Label("Copy", systemImage: "doc.on.doc").font(.system(size: 10)) }.buttonStyle(IconPress()).foregroundStyle(Ink.muted) } }
-                    ScrollViewReader { proxy in
-                        ScrollView { VStack(alignment: .leading, spacing: 0) {
-                            Text(.init(latestAnswer?.text.isEmpty == false ? latestAnswer!.text : "Thinking with your selected AI…")).font(.system(size: 14)).lineSpacing(6).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading)
-                            Color.clear.frame(height: 1).id("answer-bottom")
-                        } }.onChange(of: latestAnswer?.text) { _, _ in proxy.scrollTo("answer-bottom", anchor: .bottom) }
+                VStack(alignment: .leading, spacing: 15) {
+                    if let question = latestQuestion {
+                        HStack {
+                            Spacer(minLength: 36)
+                            Text(question.text).font(.system(size: 12, weight: .medium)).lineLimit(2)
+                                .textSelection(.enabled).padding(.horizontal, 13).padding(.vertical, 9)
+                                .background(.white.opacity(0.09), in: RoundedRectangle(cornerRadius: 14))
+                        }.accessibilityLabel("Your question: " + question.text)
                     }
+                    if let answer = latestAnswer { AssistantReplyView(message: answer, streaming: model.generating && !model.generatingNotes) }
+                    else { Text("Ask a question to begin.").foregroundStyle(Ink.muted) }
                 }.padding(20).frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(Ink.background.opacity(max(0.68, model.config.overlayOpacity - 0.17)))
             }
-            if let error = model.error { HStack { Image(systemName: "exclamationmark.circle"); Text(error).lineLimit(2).truncationMode(.tail).frame(maxWidth: .infinity, alignment: .leading); Button("Dismiss") { model.error = nil }.buttonStyle(IconPress()) }.font(.system(size: 10)).foregroundStyle(Color(hex: 0xF1BA9E)).padding(10).background(.white.opacity(0.025)) }
-        }.background(Ink.background.opacity(model.config.overlayOpacity)).clipShape(RoundedRectangle(cornerRadius: 19))
+
+            if let error = model.error { HStack { Image(systemName: "exclamationmark.circle"); Text(error).lineLimit(2).truncationMode(.tail).frame(maxWidth: .infinity, alignment: .leading); Button("Dismiss") { model.error = nil }.buttonStyle(IconPress()) }.font(.system(size: 10)).foregroundStyle(Color(hex: 0xF1BA9E)).padding(10).background(Ink.background.opacity(model.config.overlayOpacity)) }
+        }.clipShape(RoundedRectangle(cornerRadius: 19))
             .overlay(RoundedRectangle(cornerRadius: 19).strokeBorder(LinearGradient(colors: [Ink.mint.opacity(0.3), .white.opacity(0.08), Ink.lilac.opacity(0.22)], startPoint: .topLeading, endPoint: .bottomTrailing)))
             .overlay {
                 if model.config.captureProtection {

@@ -16,6 +16,31 @@ import Foundation
         try expect(!visibility.complete(firstShow) && visibility.complete(newestShow) && visibility.phase == .visible, "Rapid toggles settle on the latest visible target")
         let lastHide = visibility.request(visible: false)!
         try expect(visibility.complete(lastHide) && visibility.phase == .hidden && !visibility.targetVisible, "Latest hide completes and stays hidden")
+        let sampleReply = "True—the left side of `or` is True.\n[[VELIN_SAY]]\nThe expression is true because `or` short-circuits.\n[[VELIN_NEXT]]\nCheck how parentheses affect the result.\n[[VELIN_MORE]]\nPython evaluates `not`, then `and`, then `or`."
+        let packaged = ReplyPackage.parse(sampleReply, final: true)
+        try expect(packaged.answer == "True—the left side of `or` is True." && packaged.extras?.say == "The expression is true because `or` short-circuits.", "Optional replies stay outside the concise answer")
+        try expect(packaged.extras?.next == "Check how parentheses affect the result." && packaged.extras?.more == "Python evaluates `not`, then `and`, then `or`.", "Next step and explanation are prepared in the same response")
+        var partialMarkersHidden = true
+        for count in 1..<ReplyPackage.markers[0].count {
+            let partial = ReplyPackage.parse("Short answer.\n" + ReplyPackage.markers[0].prefix(count))
+            partialMarkersHidden = partialMarkersHidden && partial.answer == "Short answer."
+        }
+        try expect(partialMarkersHidden, "Every split delimiter is hidden during streaming")
+        let preparing = ReplyPackage.parse("Answer.\n[[VELIN_SAY]]\nIncomplete cached response")
+        try expect(preparing.answer == "Answer." && preparing.extras?.say == "", "A partially generated action is not offered as ready")
+        try expect(ReplyPackage.parse("Answer.\n[[VELIN_SAY]]\nPartial", final: true).extras?.say == "Partial", "Stopping a response preserves useful completed text")
+        try expect(ReplyPackage.parse("Plain provider answer.", final: true).answer == "Plain provider answer." && ReplyPackage.parse("Plain provider answer.", final: true).extras == nil, "Unstructured provider replies remain readable")
+        var legacyMessage = ChatMessage(role: "assistant", text: "Saved answer")
+        let legacyData = try JSONEncoder().encode(legacyMessage)
+        try expect(try JSONDecoder().decode(ChatMessage.self, from: legacyData).quickReplies == nil, "Existing history decodes without prepared reply fields")
+        legacyMessage.quickReplies = packaged.extras
+        let cachedData = try JSONEncoder().encode(legacyMessage)
+        try expect(try JSONDecoder().decode(ChatMessage.self, from: cachedData) == legacyMessage, "Prepared actions survive history reload")
+        var cachedSession = Session(); cachedSession.messages = [legacyMessage]
+        try expect(cachedSession.markdown.contains("### Say this") && cachedSession.markdown.contains("Check how parentheses"), "Export preserves optional reply content")
+        try expect(ReplyPackage.brief("Short answer.\n\nLong explanation.") == "Short answer.", "Older verbose replies open on their first paragraph")
+        try expect(ReplyPackage.parse("Answer.\n[[VELIN_M", final: true).answer == "Answer.", "Cancellation does not expose a partial delimiter")
+        try expect(ReplyPackage.parse("Answer.\n[[VELIN_MORE]]\nDetails.", final: true).extras?.more == "Details.", "A provider omitting earlier optional sections does not leak markers")
         let image = Data([0xFF, 0xD8, 0xFF]), key = "fixture-key-not-a-real-secret"
         for provider in Provider.allCases where provider != .custom {
             var p = AIProfile();p.provider=provider;p.endpoint=provider.endpoint;p.model=provider.models.first!

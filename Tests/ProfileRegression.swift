@@ -41,7 +41,17 @@ import Foundation
             precondition(!model.generating && model.error != nil && !model.overlayExpanded)
             precondition(!model.session.messages.contains { $0.role == "assistant" && $0.text.isEmpty })
             print("PASS: a long error collapses an empty failed answer")
+            local.endpoint = CommandLine.arguments[1] + "/packaged"
+            model.config.profiles[0] = local
+            model.ask("What is JSON?")
+            for _ in 0..<300 { if !model.generating { break }; try await Task.sleep(nanoseconds: 10_000_000) }
+            let reply = model.session.messages.last!
+            precondition(!model.generating && reply.text == "JSON is a text format.")
+            precondition(reply.quickReplies?.say == "JSON lets apps exchange data." && reply.quickReplies?.next == "Try a small JSON object." && reply.quickReplies?.more == "An object contains key-value pairs.")
+            let restored = AppModel(store: store)
+            precondition(restored.sessions.first?.messages.last?.quickReplies == reply.quickReplies)
+            print("PASS: streamed concise reply and prepared actions persist through history reload")
         }
-        print("7 profile regression checks passed with transport fixture.")
+        print("8 profile regression checks passed with transport fixture.")
     }
 }

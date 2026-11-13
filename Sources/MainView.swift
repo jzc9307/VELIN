@@ -181,7 +181,9 @@ struct ChatView: View {
                             else { Text(.init(message.text)).font(.system(size: 13)).lineSpacing(5).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading) }
                         }.padding(message.role == "user" ? 14 : 2).background(message.role == "user" ? .white.opacity(0.035) : .clear, in: RoundedRectangle(cornerRadius: 12)).id(message.id)
                     }; Color.clear.frame(height: 1).id("bottom") }.padding(compact ? 18 : 24) }
-                    .onChange(of: model.session.messages.last?.text) { _, _ in proxy.scrollTo("bottom", anchor: .bottom) }
+                    .onChange(of: model.session.messages.last?.id) { _, _ in
+                        if let question = model.session.messages.last(where: { $0.role == "user" }) { proxy.scrollTo(question.id, anchor: .top) }
+                    }
                 }
             }
             if let image = model.pendingImage, let nsImage = NSImage(data: image) {

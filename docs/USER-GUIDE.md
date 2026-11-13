@@ -4,6 +4,14 @@
 
 The default assistant is a slim floating bar with a prompt, Screen, Listen, mode/provider menus, History and Settings. A reply expands below the bar only after asking. Use the chevron to collapse/reopen the latest answer. The full conversation stays in the workspace. Drag the emblem/background or use Command + arrow keys to reposition the bar. Movement shortcuts register only while the assistant is visible and are released when it is hidden. When hidden mode is off, the menu-bar VELIN emblem provides Listen, Show/Hide, Hidden Mode, History and Preferences.
 
+## Short answers and prepared actions
+
+Ask normally in the floating assistant. Your question appears in a chat bubble, followed by a direct answer (usually one or two sentences). Explicit requests for more detail or code can still receive a longer answer. Optional **Say this**, **Next step**, and **Explain more** views are prepared after the answer within the same provider request. Each chip becomes available when its content is ready; clicking a ready chip switches the local view immediately, without another request. Initial generation and preparation still depend on provider/network speed and can use additional output tokens. No separate speculative requests are made.
+
+Answers begin at the top. Streaming does not force scrolling to the bottom; scroll down yourself for a longer reply. Switching to a different prepared view starts that view at the top. The answer area is moderately transparent (80% dark fill with the usual 97% input opacity), with bright text and darker controls. The input bar keeps its original opacity. Copy copies the currently selected view.
+
+Prepared views remain with the message in local history and Markdown exports. Older long replies open with their first paragraph and retain their full text under Explain more. A provider that does not follow the optional-view format still shows its answer; unavailable actions stay disabled. Meeting mode favors a short spoken answer instead of automatically listing questions and next steps. The full context stays in your saved conversation.
+
 ## Workspace
 
 The workspace opens at 920 × 680 points and can resize down to 800 × 560. The original oversized saved frame is migrated once; later window sizes are remembered. Navigation scrolls on shorter windows, Overview cards reflow, and AI Connections uses a connection menu in compact windows.

@@ -24,7 +24,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
         if '/error/' in self.path:
             self.wfile.write(('data: '+json.dumps({'error':{'message':'Synthetic failure. '*200}})+'\n\n').encode());self.wfile.flush();return
         self.wfile.write(b': heartbeat\n\n');self.wfile.flush()
-        for text in ['Hello',' world']:
+        chunks = ['Hello',' world']
+        if '/packaged/' in self.path: chunks = ['JSON is a text format.', '\n[[VELIN_', 'SAY]]\nJSON lets apps exchange data.', '\n[[VELIN_NEXT]]\nTry a small JSON object.', '\n[[VELIN_MORE]]\nAn object contains key-value pairs.']
+        for text in chunks:
             if self.path.endswith('/responses'): event={'type':'response.output_text.delta','delta':text}
             elif self.path.endswith('/messages'):event={'type':'content_block_delta','delta':{'type':'text_delta','text':text}}
             elif ':streamGenerateContent' in self.path:event={'candidates':[{'content':{'parts':[{'text':text}]}}]}
