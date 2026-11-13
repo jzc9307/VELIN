@@ -38,3 +38,11 @@ The local release consists of a DMG containing VELIN.app and an Applications sho
 - On-device Apple speech model availability varies by language/system. Unsupported local recognition fails explicitly.
 - Model IDs are editable suggestions; availability, vision support, billing and retention depend on the selected provider.
 - Local session data uses owner-only filesystem permissions, not a separate application encryption password.
+
+## Visibility update · 13 November 2026
+
+The current source/app adds a 140 ms fade, 3% shrink and 6-point downward transition for hiding/showing the assistant, with the existing bar position preserved. Reduced Motion disables movement/scale and keeps a short fade. The bar eye button and menu-bar Hidden Mode item control the existing legacy capture-exclusion request; the bar shows a dashed mint indicator while enabled. This remains best effort and does not establish compatibility with every screen-sharing app.
+
+All **56 checks** pass: the previous 52 checks plus four visibility-state regressions covering repeated show calls, stale hide completions, rapid reversals, and final hide settlement. The rebuilt app passed signature verification. Native UI checks confirmed the new eye control toggles from Off to Hidden mode requested / On and that the bar remains usable. No real provider request or recording was started during this update.
+
+The current VELIN.app is updated in place. Existing 0.1.0 installer/source archives remain the earlier local baseline; a new versioned package will be prepared for the next release request.

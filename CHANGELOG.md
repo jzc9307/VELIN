@@ -2,7 +2,9 @@
 
 ## [Unreleased]
 
-No pending changes.
+- Add a 140 ms fade/shrink/slide transition for assistant hide and show, with reduced-motion support.
+- Add an eye control and dashed border for hidden mode (best-effort capture exclusion).
+- Protect rapid visibility toggles from stale animation completions without changing the bar's saved position.
 
 ## [0.1.0]
 

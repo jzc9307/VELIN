@@ -24,9 +24,13 @@ On-device speech is required by default. Unsupported languages or missing local 
 
 General, Meeting, Coding, Study, Sales and Custom modes supply editable context. Custom instructions apply alongside the mode. Context files support UTF-8 text/Markdown/JSON and PDFs with extractable text. Up to 20 files; first 12,000 characters each. Scanned PDF OCR is not included. Notes are editable; generating notes sends the available session context to the active AI provider. Imported transcripts are useful when live recognition is unavailable.
 
+## Hide and show
+
+Use Control + Option + Space, Escape, the bar's close button, or the menu-bar Show/Hide item. The bar fades with a slight 3% shrink and 6-point downward motion over 140 ms, preserving its desktop position. Reduce Motion removes the movement/scale. Repeated presses reverse the requested state; an old hide completion cannot dismiss a newly shown bar. Hiding the bar does not stop a listening session.
+
 ## Capture exclusion
 
-Privacy → Request capture exclusion sets Apple's legacy NSWindow sharing hint on the workspace and assistant. Apple explicitly does not guarantee it hides content from capture. A recording/sharing app may still include VELIN, its icon or process. Neither activity-monitor hiding nor proctoring evasion is implemented. Compare the actual recipient's output for your exact app/OS/version, including restarted captures. Sharing a single selected window or a separate display is a different capture scope, not universal invisibility.
+The bar's eye button, menu-bar Hidden Mode item, and Privacy → Hidden mode sets Apple's legacy NSWindow sharing hint on the workspace and assistant. Apple explicitly does not guarantee it hides content from capture. A recording/sharing app may still include VELIN, its icon or process. Neither activity-monitor hiding nor proctoring evasion is implemented. Compare the actual recipient's output for your exact app/OS/version, including restarted captures. Sharing a single selected window or a separate display is a different capture scope, not universal invisibility.
 
 ## Data and recovery
 

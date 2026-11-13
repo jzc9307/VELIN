@@ -2,6 +2,7 @@ import AppKit
 import SwiftUI
 import Carbon
 import Combine
+import QuartzCore
 
 final class AssistantPanel: NSPanel {
     override var canBecomeKey: Bool { true }
@@ -13,6 +14,7 @@ final class AssistantPanel: NSPanel {
 struct OverlayView: View {
     @ObservedObject var model: AppModel
     var close: () -> Void
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     var latestAnswer: ChatMessage? { model.session.messages.last(where: { $0.role == "assistant" }) }
     var body: some View {
         VStack(spacing: 0) {
@@ -30,6 +32,14 @@ struct OverlayView: View {
             HStack(spacing: 7) {
                 VelinMark().frame(width: 21, height: 21).help("Drag here to move VELIN")
                 Button { model.capture() } label: { Image(systemName: model.pendingImage == nil ? "photo" : "photo.fill").font(.system(size: 14)).foregroundStyle(model.pendingImage == nil ? Ink.muted : Ink.mint) }.buttonStyle(IconPress()).help("Attach screenshot · ⌃⌥S").disabled(model.generating)
+                Button { model.toggleHiddenMode() } label: {
+                    Image(systemName: model.config.captureProtection ? "eye.slash" : "eye")
+                        .font(.system(size: 14))
+                        .foregroundStyle(model.config.captureProtection ? Ink.mint : Ink.muted)
+                }.buttonStyle(IconPress())
+                    .accessibilityLabel(model.config.captureProtection ? "Hidden mode requested" : "Enable hidden mode")
+                    .accessibilityValue(model.config.captureProtection ? "On" : "Off")
+                    .help("Hidden mode: request screen-capture exclusion. Compatibility varies; invisibility is not guaranteed.")
                 Button { model.toggleListening() } label: { HStack(spacing: 5) { Image(systemName: "waveform").font(.system(size: 14)); Text(model.recording ? clockText(model.elapsed) : "Listen").font(.system(size: 10)) }.foregroundStyle(model.recording ? Ink.mint : Ink.muted) }.buttonStyle(IconPress()).disabled(model.startingAudio).help("Start / stop listening · ⌃⌥L")
                 Menu { ForEach(AssistantMode.allCases) { mode in Button(mode.rawValue) { model.config.mode = mode; model.session.mode = mode; model.saveConfig() } } } label: { Label(model.config.mode.rawValue, systemImage: "square.grid.2x2").font(.system(size: 10)) }.menuStyle(.borderlessButton).fixedSize()
                 Menu { ForEach(model.config.profiles) { profile in Button("\(profile.name) · \(profile.provider.rawValue)") { model.config.activeProfileID = profile.id; model.saveConfig() } }; Divider(); Button("AI Connections…") { model.page = "AI Connections"; model.openMain() } } label: { Text(model.activeProfile?.provider.rawValue ?? "Connect AI").font(.system(size: 10)) }.menuStyle(.borderlessButton).fixedSize()
@@ -64,6 +74,13 @@ struct OverlayView: View {
             if let error = model.error { HStack { Image(systemName: "exclamationmark.circle"); Text(error).lineLimit(2).truncationMode(.tail).frame(maxWidth: .infinity, alignment: .leading); Button("Dismiss") { model.error = nil }.buttonStyle(IconPress()) }.font(.system(size: 10)).foregroundStyle(Color(hex: 0xF1BA9E)).padding(10).background(.white.opacity(0.025)) }
         }.background(Ink.background.opacity(model.config.overlayOpacity)).clipShape(RoundedRectangle(cornerRadius: 19))
             .overlay(RoundedRectangle(cornerRadius: 19).strokeBorder(LinearGradient(colors: [Ink.mint.opacity(0.3), .white.opacity(0.08), Ink.lilac.opacity(0.22)], startPoint: .topLeading, endPoint: .bottomTrailing)))
+            .overlay {
+                if model.config.captureProtection {
+                    RoundedRectangle(cornerRadius: 19).strokeBorder(Ink.mint.opacity(0.65), style: StrokeStyle(lineWidth: 1, dash: [4, 4])).allowsHitTesting(false)
+                }
+            }
+            .scaleEffect(reduceMotion || model.assistantPresented ? 1 : 0.97)
+            .offset(y: reduceMotion || model.assistantPresented ? 0 : 6)
             .foregroundStyle(.white.opacity(0.95)).preferredColorScheme(.dark).onExitCommand { close() }
     }
 }
@@ -115,6 +132,7 @@ final class Hotkeys {
     var permissionTimer: Timer?
     var terminating = false
     private var subscriptions = Set<AnyCancellable>()
+    private var assistantVisibility = AssistantVisibilityState()
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.regular)
         NSApp.appearance = NSAppearance(named: .darkAqua)
@@ -180,14 +198,52 @@ final class Hotkeys {
     func applyProtection() { guard window != nil, panel != nil else { return }; window.sharingType = model.config.captureProtection ? .none : .readOnly; panel.sharingType = model.config.captureProtection ? .none : .readOnly }
     func showMain() { window.makeKeyAndOrderFront(nil); NSApp.activate(ignoringOtherApps: true) }
     func showPanel() {
-        panel.orderFrontRegardless()
+        guard let ticket = assistantVisibility.request(visible: true) else { return }
+        let wasVisible = panel.isVisible
+        if !wasVisible {
+            panel.alphaValue = 0
+            model.assistantPresented = false
+            panel.orderFrontRegardless()
+        }
+        panel.ignoresMouseEvents = false
         let conflicts = hotkeys.registerMovement()
         if !conflicts.isEmpty { model.notice = "Move shortcut unavailable: \(conflicts.joined(separator: ", ")). Drag the VELIN emblem instead." }
+        if wasVisible { animateAssistant(visible: true, ticket: ticket) }
+        else {
+            // Allow the initially hidden SwiftUI transform to be laid out before animating it.
+            DispatchQueue.main.async { [weak self] in
+                guard let self, self.assistantVisibility.isCurrent(ticket) else { return }
+                self.animateAssistant(visible: true, ticket: ticket)
+            }
+        }
     }
-    func hidePanel() { panel.orderOut(nil); hotkeys.releaseMovement() }
-    func togglePanel() { if panel.isVisible { hidePanel() } else { showPanel() } }
+    func hidePanel() {
+        guard let ticket = assistantVisibility.request(visible: false) else { return }
+        panel.ignoresMouseEvents = true
+        hotkeys.releaseMovement()
+        animateAssistant(visible: false, ticket: ticket)
+    }
+    private func animateAssistant(visible: Bool, ticket: UInt64) {
+        let reduced = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+        let duration = reduced ? 0.08 : 0.14
+        withAnimation(reduced ? nil : .timingCurve(0.22, 1, 0.36, 1, duration: duration)) {
+            model.assistantPresented = visible
+        }
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = duration
+            context.timingFunction = CAMediaTimingFunction(controlPoints: 0.22, 1, 0.36, 1)
+            panel.animator().alphaValue = visible ? 1 : 0
+        } completionHandler: { [weak self] in
+            Task { @MainActor in
+                guard let self, self.assistantVisibility.complete(ticket) else { return }
+                if !visible { self.panel.orderOut(nil); self.panel.alphaValue = 1 }
+                self.panel.invalidateShadow()
+            }
+        }
+    }
+    func togglePanel() { if assistantVisibility.targetVisible { hidePanel() } else { showPanel() } }
     func movePanel(dx: CGFloat, dy: CGFloat) {
-        guard panel.isVisible, let first = NSScreen.screens.first else { return }
+        guard assistantVisibility.targetVisible, panel.isVisible, let first = NSScreen.screens.first else { return }
         let desktop = NSScreen.screens.dropFirst().reduce(first.visibleFrame) { $0.union($1.visibleFrame) }
         var frame = panel.frame.offsetBy(dx: dx, dy: dy)
         frame.origin.x = min(max(frame.minX, desktop.minX), desktop.maxX - frame.width)
@@ -225,8 +281,8 @@ final class Hotkeys {
         menu.removeAllItems()
         func item(_ title: String, _ action: Selector) { let row = menu.addItem(withTitle: title, action: action, keyEquivalent: ""); row.target = self }
         item(model.recording ? "Stop Listening" : "Start Listening", #selector(listen))
-        item(panel.isVisible ? "Hide VELIN" : "Show VELIN", #selector(assistant))
-        item(model.config.captureProtection ? "Disable Capture Exclusion" : "Request Capture Exclusion", #selector(captureExclusion))
+        item(assistantVisibility.targetVisible ? "Hide VELIN" : "Show VELIN", #selector(assistant))
+        item(model.config.captureProtection ? "Disable Hidden Mode" : "Enable Hidden Mode", #selector(captureExclusion))
         menu.items.last?.state = model.config.captureProtection ? .on : .off
         menu.addItem(.separator())
         item("View Sessions", #selector(history)); item("Preferences…", #selector(connections))
@@ -235,7 +291,7 @@ final class Hotkeys {
         let row = menu.addItem(withTitle: "Quit VELIN", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"); row.target = NSApp
     }
     @objc func history() { model.page = "History"; showMain() }
-    @objc func captureExclusion() { model.config.captureProtection.toggle(); model.saveConfig(); model.notice = "Capture exclusion is best effort. Verify the actual shared view; invisibility is not guaranteed." }
+    @objc func captureExclusion() { model.toggleHiddenMode() }
 
     @objc func workspace() { showMain() }
     @objc func assistant() { togglePanel() }

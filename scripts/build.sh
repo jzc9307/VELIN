@@ -9,7 +9,7 @@ trap 'rm -rf "$STAGE"' EXIT
 APP="$STAGE/VELIN.app"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 python3 "$SOURCE/scripts/release.py" check
-xcrun swiftc -swift-version 5 -O -module-cache-path "$CACHE/swift-cache" -target arm64-apple-macos14 -parse-as-library "$SOURCE"/Sources/*.swift -framework SwiftUI -framework AppKit -framework Speech -framework AVFoundation -framework ScreenCaptureKit -framework Security -framework Carbon -framework PDFKit -o "$APP/Contents/MacOS/VELIN"
+xcrun swiftc -swift-version 5 -O -module-cache-path "$CACHE/swift-cache" -target arm64-apple-macos14 -parse-as-library "$SOURCE"/Sources/*.swift -framework SwiftUI -framework AppKit -framework Speech -framework AVFoundation -framework ScreenCaptureKit -framework Security -framework Carbon -framework PDFKit -framework QuartzCore -o "$APP/Contents/MacOS/VELIN"
 cp "$SOURCE/Resources/Info.plist" "$APP/Contents/Info.plist"
 cp "$SOURCE/Resources/VELIN.icns" "$APP/Contents/Resources/"
 ditto "$SOURCE/Resources/Providers" "$APP/Contents/Resources/Providers"

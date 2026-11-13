@@ -16,6 +16,7 @@ import ScreenCaptureKit
     @Published var startingAudio = false
     @Published var generating = false
     @Published var overlayExpanded = false
+    @Published var assistantPresented = false
     @Published var generatingNotes = false
     @Published var prompt = ""
     @Published var error: String?
@@ -75,6 +76,10 @@ import ScreenCaptureKit
     func saveConfig() {
         guard loadedSafely else { return }
         do { try store.save(config, name: "settings.json"); updateProtection() } catch { self.error = "Settings were not saved: \(error.localizedDescription)" }
+    }
+    func toggleHiddenMode() {
+        config.captureProtection.toggle()
+        saveConfig()
     }
     func refreshPermissions() {
         microphoneAllowed = AVCaptureDevice.authorizationStatus(for: .audio) == .authorized

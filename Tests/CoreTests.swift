@@ -7,6 +7,15 @@ import Foundation
     }
     static func object(_ request: URLRequest) throws -> [String: Any] { try JSONSerialization.jsonObject(with: request.httpBody!) as! [String: Any] }
     @MainActor static func main() async throws {
+        var visibility = AssistantVisibilityState()
+        let firstShow = visibility.request(visible: true)!
+        try expect(visibility.request(visible: true) == nil, "Repeated show does not restart its transition")
+        let staleHide = visibility.request(visible: false)!
+        let newestShow = visibility.request(visible: true)!
+        try expect(!visibility.complete(staleHide) && visibility.targetVisible, "An old hide completion cannot close a newly shown bar")
+        try expect(!visibility.complete(firstShow) && visibility.complete(newestShow) && visibility.phase == .visible, "Rapid toggles settle on the latest visible target")
+        let lastHide = visibility.request(visible: false)!
+        try expect(visibility.complete(lastHide) && visibility.phase == .hidden && !visibility.targetVisible, "Latest hide completes and stays hidden")
         let image = Data([0xFF, 0xD8, 0xFF]), key = "fixture-key-not-a-real-secret"
         for provider in Provider.allCases where provider != .custom {
             var p = AIProfile();p.provider=provider;p.endpoint=provider.endpoint;p.model=provider.models.first!
