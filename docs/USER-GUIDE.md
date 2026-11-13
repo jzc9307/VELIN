@@ -2,7 +2,7 @@
 
 ## Compact assistant
 
-The default assistant is a slim floating bar with a prompt, Screen, Listen, mode/provider menus, History and Settings. A reply expands below the bar only after asking. Use the chevron to collapse/reopen the latest answer. The full conversation stays in the workspace. Drag the emblem/background or use Command + arrow keys to reposition the bar. Movement shortcuts register only while the assistant is visible and are released when it is hidden. The menu-bar VELIN emblem provides Listen, Show/Hide, capture exclusion, History and Preferences.
+The default assistant is a slim floating bar with a prompt, Screen, Listen, mode/provider menus, History and Settings. A reply expands below the bar only after asking. Use the chevron to collapse/reopen the latest answer. The full conversation stays in the workspace. Drag the emblem/background or use Command + arrow keys to reposition the bar. Movement shortcuts register only while the assistant is visible and are released when it is hidden. When hidden mode is off, the menu-bar VELIN emblem provides Listen, Show/Hide, Hidden Mode, History and Preferences.
 
 ## Workspace
 
@@ -28,9 +28,13 @@ General, Meeting, Coding, Study, Sales and Custom modes supply editable context.
 
 Use Control + Option + Space, Escape, the bar's close button, or the menu-bar Show/Hide item. The bar fades with a slight 3% shrink and 6-point downward motion over 140 ms, preserving its desktop position. Reduce Motion removes the movement/scale. Repeated presses reverse the requested state; an old hide completion cannot dismiss a newly shown bar. Hiding the bar does not stop a listening session.
 
-## Capture exclusion
+## Hidden mode
 
-The bar's eye button, menu-bar Hidden Mode item, and Privacy → Hidden mode sets Apple's legacy NSWindow sharing hint on the workspace and assistant. Apple explicitly does not guarantee it hides content from capture. A recording/sharing app may still include VELIN, its icon or process. Neither activity-monitor hiding nor proctoring evasion is implemented. Compare the actual recipient's output for your exact app/OS/version, including restarted captures. Sharing a single selected window or a separate display is a different capture scope, not universal invisibility.
+The bar's eye button, menu-bar Hidden Mode item, and Privacy → Hidden mode control the same saved setting. Enabling it animates the visible bar to 97% size over 180 ms and removes VELIN's Dock/app-switcher presence and menu-bar icon. The assistant remains usable. Disabling it restores the full-size bar and both icons. Reduce Motion disables the size change. This mode persists across relaunches; hiding/showing the bar does not change it.
+
+With both icons hidden, press Control + Option + Space to reopen the bar and click its eye button to restore the icons. Alternatively reopen VELIN.app in Finder, then use Privacy in the workspace. If macOS reports a shortcut conflict, the workspace shows the conflict and this Finder recovery still works. No listening, screenshot or AI request starts when recovering the UI.
+
+Hidden mode also sets Apple's legacy NSWindow sharing hint on the workspace and assistant. Apple does not guarantee this excludes content from capture. A recording/sharing app may still include VELIN. The process stays visible in Activity Monitor. Compare the actual recipient's output for your exact app/OS/version, including restarted captures.
 
 ## Data and recovery
 

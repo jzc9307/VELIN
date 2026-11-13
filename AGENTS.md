@@ -6,7 +6,7 @@ This is the one editable source tree and Git root. Locally it lives at `Project/
 
 ## Product standard
 
-Keep VELIN's original dark mint/lilac design, custom signal emblem, compact native controls, readable aligned layouts, press feedback, and accessible labels. Use bundled provider logos with credits. The original workflow reference is Cluely, but do not copy its code, branding, packaged assets, proprietary backend calls or tutorials. Do not promise invisibility: capture exclusion is a best-effort legacy OS hint. Global hotkeys need no Accessibility permission. Never start capture at launch or silently send screenshots/audio to a provider.
+Keep VELIN's original dark mint/lilac design, custom signal emblem, compact native controls, readable aligned layouts, press feedback, and accessible labels. Use bundled provider logos with credits. The original workflow reference is Cluely, but do not copy its code, branding, packaged assets, proprietary backend calls or tutorials. Do not promise invisibility: capture exclusion is a best-effort legacy OS hint. Hidden mode also hides the Dock/app-switcher and menu-bar icons, with a slight assistant shrink. Preserve Control+Option+Space and app-reopen recovery; disabling the mode restores both icons. Global hotkeys need no Accessibility permission. Never start capture at launch or silently send screenshots/audio to a provider.
 
 ## AI connections
 

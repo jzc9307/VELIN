@@ -39,7 +39,7 @@ struct OverlayView: View {
                 }.buttonStyle(IconPress())
                     .accessibilityLabel(model.config.captureProtection ? "Hidden mode requested" : "Enable hidden mode")
                     .accessibilityValue(model.config.captureProtection ? "On" : "Off")
-                    .help("Hidden mode: request screen-capture exclusion. Compatibility varies; invisibility is not guaranteed.")
+                    .help("Hidden mode hides the Dock and menu-bar icons and requests capture exclusion. Use ⌃⌥Space to reopen the bar; click the eye again to restore the icons.")
                 Button { model.toggleListening() } label: { HStack(spacing: 5) { Image(systemName: "waveform").font(.system(size: 14)); Text(model.recording ? clockText(model.elapsed) : "Listen").font(.system(size: 10)) }.foregroundStyle(model.recording ? Ink.mint : Ink.muted) }.buttonStyle(IconPress()).disabled(model.startingAudio).help("Start / stop listening · ⌃⌥L")
                 Menu { ForEach(AssistantMode.allCases) { mode in Button(mode.rawValue) { model.config.mode = mode; model.session.mode = mode; model.saveConfig() } } } label: { Label(model.config.mode.rawValue, systemImage: "square.grid.2x2").font(.system(size: 10)) }.menuStyle(.borderlessButton).fixedSize()
                 Menu { ForEach(model.config.profiles) { profile in Button("\(profile.name) · \(profile.provider.rawValue)") { model.config.activeProfileID = profile.id; model.saveConfig() } }; Divider(); Button("AI Connections…") { model.page = "AI Connections"; model.openMain() } } label: { Text(model.activeProfile?.provider.rawValue ?? "Connect AI").font(.system(size: 10)) }.menuStyle(.borderlessButton).fixedSize()
@@ -79,7 +79,8 @@ struct OverlayView: View {
                     RoundedRectangle(cornerRadius: 19).strokeBorder(Ink.mint.opacity(0.65), style: StrokeStyle(lineWidth: 1, dash: [4, 4])).allowsHitTesting(false)
                 }
             }
-            .scaleEffect(reduceMotion || model.assistantPresented ? 1 : 0.97)
+            .scaleEffect(reduceMotion ? 1 : (model.assistantPresented ? 1 : 0.97) * (model.config.captureProtection ? 0.97 : 1))
+            .animation(reduceMotion ? nil : .timingCurve(0.22, 1, 0.36, 1, duration: 0.18), value: model.config.captureProtection)
             .offset(y: reduceMotion || model.assistantPresented ? 0 : 6)
             .foregroundStyle(.white.opacity(0.95)).preferredColorScheme(.dark).onExitCommand { close() }
     }
@@ -134,7 +135,7 @@ final class Hotkeys {
     private var subscriptions = Set<AnyCancellable>()
     private var assistantVisibility = AssistantVisibilityState()
     func applicationDidFinishLaunching(_ notification: Notification) {
-        NSApp.setActivationPolicy(.regular)
+        NSApp.setActivationPolicy(model.config.captureProtection ? .accessory : .regular)
         NSApp.appearance = NSAppearance(named: .darkAqua)
         window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1220, height: 840), styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView], backing: .buffered, defer: false)
         window.isReleasedWhenClosed = false
@@ -165,7 +166,7 @@ final class Hotkeys {
         model.$overlayExpanded.combineLatest(model.$pendingImage, model.$error).sink { [weak self] _, _, _ in
             DispatchQueue.main.async { self?.resizePanel() }
         }.store(in: &subscriptions)
-        applyProtection(); installMenus()
+        installMenus(); applyProtection()
         hotkeys.action = { [weak self] id in
             guard let self else { return }
             switch id {
@@ -181,7 +182,7 @@ final class Hotkeys {
             }
         }
         let conflicts = hotkeys.register()
-        if !conflicts.isEmpty { model.notice = "Shortcut unavailable: \(conflicts.joined(separator: ", ")). Use the menu bar controls." }
+        if !conflicts.isEmpty { model.notice = "Shortcut unavailable: \(conflicts.joined(separator: ", ")). Reopen VELIN.app to use the workspace controls." }
         permissionTimer = Timer.scheduledTimer(withTimeInterval: 3, repeats: true) { [weak self] _ in Task { @MainActor in self?.model.refreshPermissions() } }
         window.makeKeyAndOrderFront(nil); NSApp.activate(ignoringOtherApps: true)
     }
@@ -195,7 +196,30 @@ final class Hotkeys {
         let y = min(max(old.maxY - targetHeight, screen.minY + 16), screen.maxY - targetHeight - 16)
         panel.setFrame(NSRect(x: x, y: y, width: width, height: targetHeight), display: true, animate: false)
     }
-    func applyProtection() { guard window != nil, panel != nil else { return }; window.sharingType = model.config.captureProtection ? .none : .readOnly; panel.sharingType = model.config.captureProtection ? .none : .readOnly }
+    func applyProtection() {
+        guard window != nil, panel != nil else { return }
+        let hidden = model.config.captureProtection
+        window.sharingType = hidden ? .none : .readOnly
+        panel.sharingType = hidden ? .none : .readOnly
+        let desiredPolicy: NSApplication.ActivationPolicy = hidden ? .accessory : .regular
+        if NSApp.activationPolicy() != desiredPolicy {
+            // Switching Dock presence must not dismiss either retained window or steal
+            // focus from another app when the assistant is a nonactivating panel.
+            let keyWindow = NSApp.keyWindow
+            let wasActive = NSApp.isActive
+            if !NSApp.setActivationPolicy(desiredPolicy) {
+                status?.isVisible = true
+                model.error = "macOS could not change VELIN's Dock visibility. The menu-bar control remains available; try toggling hidden mode again."
+                return
+            }
+            if assistantVisibility.targetVisible { panel.orderFrontRegardless() }
+            if wasActive, let keyWindow, keyWindow.isVisible {
+                keyWindow.makeKeyAndOrderFront(nil)
+                NSApp.activate(ignoringOtherApps: true)
+            }
+        }
+        status?.isVisible = !hidden
+    }
     func showMain() { window.makeKeyAndOrderFront(nil); NSApp.activate(ignoringOtherApps: true) }
     func showPanel() {
         guard let ticket = assistantVisibility.request(visible: true) else { return }

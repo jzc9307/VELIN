@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+- Hide VELIN’s Dock/app-switcher and menu-bar icons in hidden mode; restore both when disabled, with keyboard/Finder recovery.
+- Animate the eye-button mode change to a slightly smaller assistant, respecting Reduce Motion.
+
 - Add a 140 ms fade/shrink/slide transition for assistant hide and show, with reduced-motion support.
 - Add an eye control and dashed border for hidden mode (best-effort capture exclusion).
 - Protect rapid visibility toggles from stale animation completions without changing the bar's saved position.

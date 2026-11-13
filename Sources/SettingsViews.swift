@@ -152,8 +152,8 @@ struct PrivacyView: View {
                 Text("Current destination: \(model.endpointHost)").font(.system(size: 11, weight: .medium)).foregroundStyle(Ink.mint)
             } }
             Card { VStack(alignment: .leading, spacing: 16) {
-                Toggle("Hidden mode · request capture exclusion", isOn: $model.config.captureProtection).toggleStyle(.switch).font(.system(size: 14, weight: .medium)).onChange(of: model.config.captureProtection) { _, _ in model.saveConfig() }
-                Text("Best effort only. macOS and screen-sharing applications may still capture VELIN. This setting applies the legacy window-sharing hint; it does not hide the process or guarantee invisibility. Verify the recipient's view in your exact setup.").font(.system(size: 12)).foregroundStyle(Ink.muted).lineSpacing(5)
+                Toggle("Hidden mode", isOn: $model.config.captureProtection).toggleStyle(.switch).font(.system(size: 14, weight: .medium)).onChange(of: model.config.captureProtection) { _, _ in model.saveConfig() }
+                Text("Hides VELIN from the Dock, app switcher, and menu bar, and makes the assistant slightly smaller. Press ⌃⌥Space to show the bar, then click its eye button to restore the icons. You can also reopen VELIN.app to reach this setting. Screen-capture exclusion is best effort; macOS and sharing apps may still capture VELIN. It does not hide the process.").font(.system(size: 12)).foregroundStyle(Ink.muted).lineSpacing(5)
                 Link("Read Apple's capture limitation ↗", destination: URL(string: "https://developer.apple.com/documentation/appkit/nswindow/sharingtype-swift.enum/none")!).font(.system(size: 11)).foregroundStyle(Ink.lilac)
                 HStack { Text("Assistant opacity").font(.system(size: 12)); Slider(value: $model.config.overlayOpacity, in: 0.65...1).tint(Ink.mint).onChange(of: model.config.overlayOpacity) { _, _ in model.saveConfig() }; Text("\(Int(model.config.overlayOpacity*100))%").font(.system(size: 11, design: .monospaced)).frame(width: 40) }
             } }
