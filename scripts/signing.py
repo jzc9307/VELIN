@@ -13,7 +13,7 @@ def identity():
     data=json.loads(CONFIG.read_text())
     if not re.fullmatch(r'[0-9a-fA-F]{40}',data.get('sha1','')):raise SystemExit('Invalid local signing fingerprint.')
     return data
-def requirement(data):return 'identifier "'+BUNDLE+'" and anchor H"'+data['sha1']+'"'
+def requirement(data,bundle=BUNDLE):return 'identifier "'+bundle+'" and anchor H"'+data['sha1']+'"'
 def setup():
     if CONFIG.exists():identity();print('Reusing the configured VELIN signing identity.');return
     keychain=output(['security','default-keychain','-d','user']).strip('"')
@@ -42,14 +42,14 @@ def setup():
             traditional.unlink()
     CONFIG.write_text(json.dumps({'sha1':fingerprint,'keychain':keychain,'label':LABEL},indent=2)+'\n');CONFIG.chmod(0o600)
     print('Persistent local signing configured. Private key is non-extractable in login Keychain; system trust is unchanged.')
-def verify(app):
-    data=identity();subprocess.run(['codesign','--verify','--deep','--strict','-R='+requirement(data),str(app)],check=True)
-def sign(app):
-    data=identity();subprocess.run(['codesign','--force','--sign',data['sha1'],'--keychain',data['keychain'],'--timestamp=none','--identifier',BUNDLE,'--requirements','=designated => '+requirement(data),str(app)],check=True);verify(app)
+def verify(app,bundle=BUNDLE):
+    data=identity();subprocess.run(['codesign','--verify','--deep','--strict','-R='+requirement(data,bundle),str(app)],check=True)
+def sign(app,bundle=BUNDLE):
+    data=identity();subprocess.run(['codesign','--force','--sign',data['sha1'],'--keychain',data['keychain'],'--timestamp=none','--identifier',bundle,'--requirements','=designated => '+requirement(data,bundle),str(app)],check=True);verify(app,bundle)
     print('Signed with VELIN’s persistent local identity.')
 if __name__=='__main__':
-    p=argparse.ArgumentParser(description=__doc__);p.add_argument('command',choices=['setup','sign','verify']);p.add_argument('app',nargs='?',type=pathlib.Path);a=p.parse_args()
+    p=argparse.ArgumentParser(description=__doc__);p.add_argument('command',choices=['setup','sign','verify']);p.add_argument('app',nargs='?',type=pathlib.Path);p.add_argument('--bundle-id',default=BUNDLE);a=p.parse_args()
     if a.command=='setup':setup()
     elif a.app is None:p.error('App path required')
-    elif a.command=='sign':sign(a.app)
-    else:verify(a.app)
+    elif a.command=='sign':sign(a.app,a.bundle_id)
+    else:verify(a.app,a.bundle_id)

@@ -36,7 +36,10 @@ def prepare(bump='patch'):
     (ROOT/'VERSION').write_text(v+'\n'); (ROOT/'BUILD_NUMBER').write_text(build+'\n')
     info=plistlib.loads((ROOT/'Resources/Info.plist').read_bytes()); info['CFBundleShortVersionString']=v; info['CFBundleVersion']=build
     (ROOT/'Resources/Info.plist').write_bytes(plistlib.dumps(info))
-    history=catalog(); history.append({'version':v,'build':int(build),'status':'Newest · prepared','url':None,'notes':notes});sync(history)
+    history=catalog()
+    for old in history:
+        if not old.get('url'):old['status']='Local · archived'
+    history.append({'version':v,'build':int(build),'status':'Newest · prepared','url':None,'notes':notes});sync(history)
     p=ROOT/'CHANGELOG.md';p.write_text(p.read_text().replace('## [Unreleased]\n'+p.read_text().split('## [Unreleased]\n',1)[1].split('\n## ',1)[0],f'## [Unreleased]\n\nNo pending changes.\n\n## [{v}]\n\n{notes}\n',1))
     pending.parent.mkdir(exist_ok=True);pending.write_text(json.dumps({'version':v,'build':build})+'\n');check()
 def preflight():
@@ -60,12 +63,29 @@ def dmg():
     if dest.exists():raise SystemExit(f'Installer already exists: {dest}. Preserve versioned artifacts.')
     with tempfile.TemporaryDirectory(prefix='velin-dmg-') as tmp:
         run(['ditto','--noextattr','--norsrc',str(app),tmp+'/VELIN.app']);pathlib.Path(tmp,'Applications').symlink_to('/Applications')
+        pathlib.Path(tmp,'INSTALL.txt').write_text('VELIN '+version()+'\n\nDrag VELIN.app to Applications, then eject this disk image.\nOpen VELIN from Applications and follow setup.\nThe app is free. AI API usage is billed by your chosen provider.\nThis local release is self-signed and not Apple-notarized.\n')
         run(['hdiutil','create','-volname',f'VELIN {version()}','-srcfolder',tmp,'-ov','-format','UDZO',str(dest)])
     print(dest);return dest
 def package():
     preflight()
     if run(['git','status','--porcelain']):raise SystemExit('Commit the reviewed source before packaging.')
-    out=ROOT/'.release/current';out.mkdir(parents=True,exist_ok=True);v=version();app=project()/'VELIN.app'
+    out=ROOT/'.release/current';v=version();app=project()/'VELIN.app'
+    export=project()/'outputs'/('v'+v)
+    if (export/'manifest.json').exists():
+        manifest=json.loads((export/'manifest.json').read_text())
+        if manifest.get('commit')!=run(['git','rev-parse','HEAD']):raise SystemExit('This version already has a packaged archive from another commit. Preserve it; do not overwrite versioned artifacts.')
+        for line in (export/'SHA256SUMS.txt').read_text().splitlines():
+            digest,name=line.split('  ',1)
+            if pathlib.Path(name).name!=name or hashlib.sha256((export/name).read_bytes()).hexdigest()!=digest:raise SystemExit('Existing package checksum mismatch. Inspect the archive before proceeding.')
+        print('Reusing verified package: '+str(export));return
+    if out.exists():
+        allowed=lambda p:p.is_file() and (p.name in ('SHA256SUMS.txt','manifest.json','NOTES.md') or re.fullmatch(r'VELIN-[0-9.]+-(?:macOS-arm64|source)\.(?:zip|dmg)',p.name))
+        if not all(allowed(p) for p in out.iterdir()):raise SystemExit('Unexpected release-staging files; review them before packaging.')
+        shutil.rmtree(out)
+    out.mkdir(parents=True)
+    info=plistlib.loads((app/'Contents/Info.plist').read_bytes())
+    if info['CFBundleShortVersionString']!=v or info['CFBundleVersion']!=(ROOT/'BUILD_NUMBER').read_text().strip():raise SystemExit('Rebuild the app for this version/build.')
+    run(['codesign','--verify','--deep','--strict',str(app)])
     installer=project()/'outputs'/f'VELIN-{v}-macOS-arm64.dmg'
     if not installer.exists():installer=dmg()
     shutil.copy2(installer,out/installer.name)
@@ -76,7 +96,13 @@ def package():
         if p.suffix in ('.zip','.dmg'):sums.append(hashlib.sha256(p.read_bytes()).hexdigest()+'  '+p.name)
     (out/'SHA256SUMS.txt').write_text('\n'.join(sums)+'\n')
     (out/'manifest.json').write_text(json.dumps({'version':v,'commit':run(['git','rev-parse','HEAD'])},indent=2)+'\n')
-    print(out)
+    entry=next(x for x in catalog() if x['version']==v)
+    notes='# VELIN '+v+'\n\n**Free and open source. No VELIN subscription.** AI provider API usage is billed separately.\n\n'+entry.get('notes','')+'\n\nApple Silicon · macOS 14+. Continuous local speech requires macOS 27 and a supported language; other systems use the legacy path. This build is locally self-signed, not Developer ID signed or Apple-notarized.\n'
+    (out/'NOTES.md').write_text(notes)
+    export=project()/'outputs'/('v'+v);export.mkdir(parents=True,exist_ok=True)
+    for item in out.iterdir():shutil.copy2(item,export/item.name)
+    if hashlib.sha256(installer.read_bytes()).digest()==hashlib.sha256((export/installer.name).read_bytes()).digest():installer.unlink()
+    print(export)
 def publish(dry=False):
     check();out=ROOT/'.release/current';manifest=json.loads((out/'manifest.json').read_text())
     if manifest['commit']!=run(['git','rev-parse','HEAD']) or run(['git','status','--porcelain']):raise SystemExit('Package must match the current clean commit.')

@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 MODE="${1:-install}"
-if [ "$MODE" != "install" ] && [ "$MODE" != "--stage-only" ]; then echo 'Usage: build.sh [--stage-only]' >&2; exit 2; fi
+if [ "$MODE" != "install" ] && [ "$MODE" != "--stage-only" ] && [ "$MODE" != "--check" ]; then echo 'Usage: build.sh [--stage-only|--check]' >&2; exit 2; fi
 SOURCE="$(cd "$(dirname "$0")/.." && pwd -P)"
 if [ -f "$SOURCE/../.velin-workspace" ]; then PROJECT="$(cd "$SOURCE/.." && pwd -P)"; else PROJECT="$SOURCE/dist"; fi
 CACHE="$PROJECT/work"
@@ -20,6 +20,11 @@ ditto "$SOURCE/Resources/Providers" "$APP/Contents/Resources/Providers"
 cp "$SOURCE/LICENSE" "$APP/Contents/Resources/LICENSE.txt"
 cp "$SOURCE/THIRD-PARTY.md" "$APP/Contents/Resources/THIRD-PARTY.md"
 ditto "$SOURCE/docs" "$APP/Contents/Resources/Guides"
+python3 "$SOURCE/scripts/build-credentials.py" "$APP" "$CACHE" "$MODE"
+if [ "$MODE" = "--check" ]; then
+  echo 'App compiled and resources assembled. Validation only; no signing or installation.'
+  exit 0
+fi
 python3 "$SOURCE/scripts/signing.py" sign "$APP"
 codesign --verify --deep --strict "$APP"
 if [ "$MODE" = "--stage-only" ]; then

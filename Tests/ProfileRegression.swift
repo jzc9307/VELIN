@@ -19,7 +19,10 @@ import AVFoundation
         }
         precondition(!SpeechChannel.canResumeAfterSilence(NSError(domain: "kLSRErrorDomain", code: 1110), elapsed: 10))
         print("PASS: cancellation, service failures and unrelated domains cannot enter a recognition retry loop")
+        var modernChecks = 0
+        #if compiler(>=6.4)
         if #available(macOS 27, *) {
+            modernChecks = 2
             let format = AVAudioFormat(standardFormatWithSampleRate: 44100, channels: 2)!
             let original = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: 32)!
             original.frameLength = 32
@@ -39,6 +42,7 @@ import AVFoundation
             precondition(decoded.frameLength == 32 && abs(decoded.floatChannelData![1][7] - 0.39) < 0.00001)
             print("PASS: computer sample-buffer conversion preserves frame count and separate channels")
         }
+        #endif
         var heard = HeardQuestionDraft()
         heard.update("What is"); heard.update("What is JSON?")
         precondition(heard.text == "What is JSON?")
@@ -116,6 +120,10 @@ import AVFoundation
             precondition(model.pendingHeardQuestion.isEmpty)
             print("PASS: empty Enter submits recognized computer speech and receives an answer without duplicate finalization")
             model.receiveSpeechFinal(source: "Computer", text: "Why use JSON?")
+            model.recording = true
+            await model.stopListening()
+            precondition(!model.showLiveAudio && model.pendingHeardQuestion == "Why use JSON?")
+            print("PASS: stopping Listen hides audio status while retaining the unanswered question")
             model.ask("Give me a typed example instead.")
             for _ in 0..<300 { if !model.generating { break }; try await Task.sleep(nanoseconds: 10_000_000) }
             precondition(model.session.messages.suffix(2).first?.text == "Give me a typed example instead." && model.pendingHeardQuestion == "Why use JSON?")
@@ -128,6 +136,6 @@ import AVFoundation
             precondition(model.pendingHeardQuestion.isEmpty)
             print("PASS: a new session clears the previous pending spoken question")
         }
-        print("25 profile regression checks passed with transport fixture.")
+        print("\(24 + modernChecks) profile regression checks passed with transport fixture.")
     }
 }

@@ -2,6 +2,19 @@
 
 ## [Unreleased]
 
+No pending changes.
+
+## [0.1.1]
+
+- Collapse live audio status when Listen stops while preserving the transcript and unanswered question in Conversation.
+- Keep Keychain reads in a stable VELIN-only authenticated component, avoiding build-hash approvals for normal UI updates. macOS may require an initial component approval.
+
+- Pin the input and toolbar while only the bottom edge expands or collapses. Prepare the microphone engine away from the main UI thread to avoid Listen startup stalls.
+
+- Smoothly animate opening and closing the answer, listening, screenshot and error sections, preserving the top toolbar position and respecting Reduce Motion.
+- Align Meeting and AI provider menus with consistent typography, icons and control heights; show immediate Listen startup feedback.
+- Prepare a free/open-source GitHub README, manual upload guide, versioned DMG/ZIP/source/checksum bundle and release notes.
+
 - Put the other side’s recognized speech into Conversation and the compact assistant. Press Enter to answer without typing, with live/final deduplication and the existing global answer shortcut.
 
 - Use continuous on-device speech on macOS 27 for supported languages, keeping microphone and meeting streams separate. Stop retrying failed legacy requests in a tight loop and retain individual input errors.
@@ -9,7 +22,7 @@
 
 - Keep local app identity stable across rebuilds with a certificate-pinned signing identity, preserving Keychain trust after one authorization.
 - Show live transcription, separate microphone/computer meters and input status directly in the assistant.
-- Keep a working audio input running if the other fails, show the failure, and open the Transcript tab when listening begins.
+- Keep a working audio input running if the other fails, show the failure, and keep full transcription accessible separately from Conversation.
 - Stage signed updates without touching the running app, avoiding repeated compile/close cycles.
 
 - Stream a concise answer first, with Say this / Next step / Explain more prepared in the same request and revealed by rounded local-action chips.

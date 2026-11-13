@@ -12,7 +12,7 @@ struct ListeningStatusView: View {
                     Button(model.generating ? "Answering…" : "Answer ↵") { model.ask() }.buttonStyle(Press(primary: true)).font(.system(size: 10, weight: .semibold)).disabled(model.generating).keyboardShortcut(.return, modifiers: [])
                 }
                 if compact { Button("Transcript ↗") { model.sessionTab = "Transcript"; model.page = "Session"; model.openMain() }.font(.system(size: 10)).buttonStyle(IconPress()) }
-            }
+            }.frame(height: compact ? 36 : nil)
             HStack(spacing: 16) {
                 meter("You", "mic", model.level)
                 meter("Computer", "speaker.wave.2", model.computerLevel)

@@ -32,6 +32,7 @@ struct OverlayView: View {
     @ObservedObject var model: AppModel
     var close: () -> Void
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    private var sectionState: [Bool] { [model.showLiveAudio, model.overlayExpanded, model.pendingImage != nil, model.error != nil, !model.audioWarning.isEmpty] }
     var latestAnswer: ChatMessage? { model.session.messages.last(where: { $0.role == "assistant" }) }
     var latestQuestion: ChatMessage? {
         guard let answer = latestAnswer, let index = model.session.messages.firstIndex(where: { $0.id == answer.id }) else { return nil }
@@ -62,9 +63,9 @@ struct OverlayView: View {
                     .accessibilityLabel(model.config.captureProtection ? "Hidden mode requested" : "Enable hidden mode")
                     .accessibilityValue(model.config.captureProtection ? "On" : "Off")
                     .help("Hidden mode hides the Dock and menu-bar icons and requests capture exclusion. Use ⌃⌥Space to reopen the bar; click the eye again to restore the icons.")
-                Button { model.toggleListening() } label: { HStack(spacing: 5) { Image(systemName: "waveform").font(.system(size: 14)); Text(model.recording ? clockText(model.elapsed) : "Listen").font(.system(size: 10)) }.foregroundStyle(model.recording ? Ink.mint : Ink.muted) }.buttonStyle(IconPress()).disabled(model.startingAudio).help("Start / stop listening · ⌃⌥L")
-                Menu { ForEach(AssistantMode.allCases) { mode in Button(mode.rawValue) { model.config.mode = mode; model.session.mode = mode; model.saveConfig() } } } label: { Label(model.config.mode.rawValue, systemImage: "square.grid.2x2").font(.system(size: 10)) }.menuStyle(.borderlessButton).fixedSize()
-                Menu { ForEach(model.config.profiles) { profile in Button("\(profile.name) · \(profile.provider.rawValue)") { model.config.activeProfileID = profile.id; model.saveConfig() } }; Divider(); Button("AI Connections…") { model.page = "AI Connections"; model.openMain() } } label: { Text(model.activeProfile?.provider.rawValue ?? "Connect AI").font(.system(size: 10)) }.menuStyle(.borderlessButton).fixedSize()
+                Button { model.toggleListening() } label: { HStack(spacing: 5) { Image(systemName: "waveform").font(.system(size: 14)); Text(model.startingAudio ? "Starting…" : model.recording ? clockText(model.elapsed) : "Listen").font(.system(size: 11, weight: .medium)).monospacedDigit() }.foregroundStyle(model.recording ? Ink.mint : Ink.muted) }.buttonStyle(IconPress()).disabled(model.startingAudio).help("Start / stop listening · ⌃⌥L")
+                Menu { ForEach(AssistantMode.allCases) { mode in Button(mode.rawValue) { model.config.mode = mode; model.session.mode = mode; model.saveConfig() } } } label: { OverlayMenuLabel(title: model.config.mode.rawValue, icon: "square.grid.2x2") }.menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
+                Menu { ForEach(model.config.profiles) { profile in Button("\(profile.name) · \(profile.provider.rawValue)") { model.config.activeProfileID = profile.id; model.saveConfig() } }; Divider(); Button("AI Connections…") { model.page = "AI Connections"; model.openMain() } } label: { OverlayMenuLabel(title: model.activeProfile?.provider.rawValue ?? "Connect AI", icon: "circle.hexagongrid") }.menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
                 Spacer(minLength: 0)
                 Button("History") { model.page = "History"; model.openMain() }.font(.system(size: 10, weight: .medium)).buttonStyle(IconPress()).help("Open session history")
                 Button { model.page = "AI Connections"; model.openMain() } label: { Image(systemName: "gearshape").font(.system(size: 12)) }.buttonStyle(IconPress()).help("AI settings")
@@ -73,15 +74,15 @@ struct OverlayView: View {
                 }
                 Button(action: close) { Image(systemName: "xmark").font(.system(size: 11)) }.buttonStyle(IconPress()).help("Hide assistant · ⌃⌥Space")
             }.foregroundStyle(Ink.muted).padding(.horizontal, 18).frame(height: 42)
-            }.background(Ink.background.opacity(model.config.overlayOpacity))
-            if model.recording || model.startingAudio || !model.pendingHeardQuestion.isEmpty { ListeningStatusView(model: model, compact: true) }
+            }.frame(height: 120, alignment: .top).background(Ink.background.opacity(model.config.overlayOpacity))
+            if sectionState[0] { ListeningStatusView(model: model, compact: true).frame(height: model.audioWarning.isEmpty ? 142 : 170, alignment: .top).background(Ink.background.opacity(model.config.overlayOpacity)).transition(.opacity) }
             if let image = model.pendingImage, let nsImage = NSImage(data: image) {
                 Rectangle().fill(Ink.line).frame(height: 1)
                 HStack(spacing: 12) {
                     Image(nsImage: nsImage).resizable().scaledToFit().frame(width: 94, height: 58).clipShape(RoundedRectangle(cornerRadius: 7))
                     VStack(alignment: .leading, spacing: 5) { Text("Screenshot attached").font(.system(size: 11, weight: .semibold)); Text("Sent with your next question to \(model.endpointHost).").font(.system(size: 9)).foregroundStyle(Ink.muted) }
                     Spacer(); Button { model.pendingImage = nil } label: { Image(systemName: "xmark.circle.fill").font(.system(size: 14)).foregroundStyle(Ink.muted) }.buttonStyle(IconPress()).help("Remove screenshot")
-                }.padding(12).background(Ink.background.opacity(model.config.overlayOpacity))
+                }.padding(12).background(Ink.background.opacity(model.config.overlayOpacity)).transition(.opacity)
             }
             if model.overlayExpanded {
                 Rectangle().fill(Ink.line).frame(height: 1)
@@ -98,10 +99,13 @@ struct OverlayView: View {
                     else { Text("Ask a question to begin.").foregroundStyle(Ink.muted) }
                 }.padding(20).frame(maxWidth: .infinity, maxHeight: .infinity)
                     .background(Ink.background.opacity(max(0.68, model.config.overlayOpacity - 0.17)))
+                    .transition(.opacity)
             }
 
             if let error = model.error { HStack { Image(systemName: "exclamationmark.circle"); Text(error).lineLimit(2).truncationMode(.tail).frame(maxWidth: .infinity, alignment: .leading); Button("Dismiss") { model.error = nil }.buttonStyle(IconPress()) }.font(.system(size: 10)).foregroundStyle(Color(hex: 0xF1BA9E)).padding(10).background(Ink.background.opacity(model.config.overlayOpacity)) }
-        }.clipShape(RoundedRectangle(cornerRadius: 19))
+        }.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            .animation(reduceMotion ? nil : .easeOut(duration: 0.24), value: sectionState)
+            .clipShape(RoundedRectangle(cornerRadius: 19))
             .overlay(RoundedRectangle(cornerRadius: 19).strokeBorder(LinearGradient(colors: [Ink.mint.opacity(0.3), .white.opacity(0.08), Ink.lilac.opacity(0.22)], startPoint: .topLeading, endPoint: .bottomTrailing)))
             .overlay {
                 if model.config.captureProtection {
@@ -112,6 +116,18 @@ struct OverlayView: View {
             .animation(reduceMotion ? nil : .timingCurve(0.22, 1, 0.36, 1, duration: 0.18), value: model.config.captureProtection)
             .offset(y: reduceMotion || model.assistantPresented ? 0 : 6)
             .foregroundStyle(.white.opacity(0.95)).preferredColorScheme(.dark).scrollIndicators(.hidden).onExitCommand { close() }
+    }
+}
+
+private struct OverlayMenuLabel: View {
+    let title: String
+    let icon: String
+    var body: some View {
+        HStack(alignment: .center, spacing: 5) {
+            Image(systemName: icon).font(.system(size: 12)).frame(width: 14)
+            Text(title).font(.system(size: 11, weight: .medium)).lineLimit(1)
+            Image(systemName: "chevron.down").font(.system(size: 8, weight: .semibold)).frame(width: 9)
+        }.frame(height: 30).padding(.horizontal, 3).contentShape(RoundedRectangle(cornerRadius: 8))
     }
 }
 
@@ -163,6 +179,8 @@ final class Hotkeys {
     var terminating = false
     private var subscriptions = Set<AnyCancellable>()
     private var assistantVisibility = AssistantVisibilityState()
+    private var panelTargetFrame: NSRect?
+    private var panelResizeTimer: Timer?
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(model.config.captureProtection ? .accessory : .regular)
         NSApp.appearance = NSAppearance(named: .darkAqua)
@@ -199,15 +217,13 @@ final class Hotkeys {
         model.showOverlay = { [weak self] in self?.showPanel() }
         model.toggleOverlay = { [weak self] in self?.togglePanel() }
         model.updateProtection = { [weak self] in self?.applyProtection() }
-        model.$overlayExpanded.combineLatest(model.$pendingImage, model.$error).sink { [weak self] _, _, _ in
-            DispatchQueue.main.async { self?.resizePanel() }
-        }.store(in: &subscriptions)
-        model.$heardQuestion.sink { [weak self] _ in
-            DispatchQueue.main.async { self?.resizePanel() }
-        }.store(in: &subscriptions)
-        model.$recording.combineLatest(model.$startingAudio).sink { [weak self] _, _ in
-            DispatchQueue.main.async { self?.resizePanel() }
-        }.store(in: &subscriptions)
+        // Speech changes many times per second; only section visibility affects size.
+        let listeningSection = model.$recording.combineLatest(model.$startingAudio)
+            .map { $0 || $1 }.removeDuplicates()
+        let baseSections = model.$overlayExpanded.combineLatest(model.$pendingImage.map { $0 != nil }.removeDuplicates(), model.$error.map { $0 != nil }.removeDuplicates())
+        baseSections.combineLatest(listeningSection, model.$audioWarning.map { !$0.isEmpty }.removeDuplicates())
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _, _, _ in self?.resizePanel() }.store(in: &subscriptions)
         installMenus(); applyProtection()
         hotkeys.action = { [weak self] id in
             guard let self else { return }
@@ -232,11 +248,34 @@ final class Hotkeys {
         guard panel != nil else { return }
         let old = panel.frame
         let screen = panel.screen?.visibleFrame ?? NSScreen.main?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
-        let width = min(660, screen.width - 32)
-        let targetHeight = min(CGFloat(120 + ((model.recording || model.startingAudio || !model.pendingHeardQuestion.isEmpty) ? 126 : 0) + (model.overlayExpanded ? 300 : 0) + (model.pendingImage != nil ? 84 : 0) + (model.error != nil ? 56 : 0)), screen.height - 32)
-        let x = min(max(old.minX, screen.minX + 16), screen.maxX - width - 16)
-        let y = min(max(old.maxY - targetHeight, screen.minY + 16), screen.maxY - targetHeight - 16)
-        panel.setFrame(NSRect(x: x, y: y, width: width, height: targetHeight), display: true, animate: false)
+        let target = AssistantPanelGeometry.frame(current: old, screen: screen,
+            listening: model.showLiveAudio,
+            expanded: model.overlayExpanded, image: model.pendingImage != nil,
+            error: model.error != nil, warning: !model.audioWarning.isEmpty)
+        guard target != panelTargetFrame else { return }
+        panelTargetFrame = target
+        panelResizeTimer?.invalidate(); panelResizeTimer = nil
+        guard panel.isVisible, !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion else {
+            panel.setFrame(target, display: true); return
+        }
+        // AppKit's frame animator can resize and reposition in separate steps.
+        // Apply one complete frame per tick, anchored to the same top edge.
+        let from = panel.frame, started = CACurrentMediaTime()
+        let timer = Timer(timeInterval: 1.0 / 60.0, repeats: true) { [weak self] timer in
+            Task { @MainActor in
+                guard let self, self.panelTargetFrame == target else { timer.invalidate(); return }
+                let progress = min(1, (CACurrentMediaTime() - started) / 0.24)
+                let eased = 1 - pow(1 - progress, 3)
+                let height = from.height + (target.height - from.height) * eased
+                let width = from.width + (target.width - from.width) * eased
+                let x = from.minX + (target.minX - from.minX) * eased
+                self.panel.setFrame(NSRect(x: x, y: target.maxY - height, width: width, height: height), display: true)
+                if progress >= 1 { timer.invalidate(); self.panelResizeTimer = nil; self.panel.invalidateShadow() }
+            }
+        }
+        panelResizeTimer = timer
+        RunLoop.main.add(timer, forMode: .common)
+
     }
     func applyProtection() {
         guard window != nil, panel != nil else { return }
@@ -311,6 +350,7 @@ final class Hotkeys {
     func movePanel(dx: CGFloat, dy: CGFloat) {
         guard assistantVisibility.targetVisible, panel.isVisible, let first = NSScreen.screens.first else { return }
         let desktop = NSScreen.screens.dropFirst().reduce(first.visibleFrame) { $0.union($1.visibleFrame) }
+        panelResizeTimer?.invalidate(); panelResizeTimer = nil; panelTargetFrame = nil
         var frame = panel.frame.offsetBy(dx: dx, dy: dy)
         frame.origin.x = min(max(frame.minX, desktop.minX), desktop.maxX - frame.width)
         frame.origin.y = min(max(frame.minY, desktop.minY), desktop.maxY - frame.height)

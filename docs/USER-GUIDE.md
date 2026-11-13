@@ -67,3 +67,9 @@ On macOS 27 and later, supported languages use Apple’s continuous local Speech
 You do not need to stop Listen to see words. Computer audio means sounds played by apps on this Mac, including a Teams call; it cannot directly hear a call running only on a separate phone. Listen places the other side’s recognized computer audio directly in Session → Conversation and the assistant’s live question card. Press Enter while VELIN has keyboard focus, click Answer ↵, or press Control+Option+Return from another app to answer without typing. Your microphone remains supporting context. The full raw transcript remains under Transcript. No AI request starts until you ask; a typed question takes precedence. Speech already submitted while partial is not repeated when finalized. Recognition failures stay visible per source; one unavailable input does not stop a working input.
 
 The pending question is collected from Computer audio, so a Teams call must run on this Mac with Computer audio enabled. In the floating bar, Answer ↵ becomes available as words arrive. Starting Listen opens Conversation, ready for this workflow.
+
+### Remembered Keychain approval
+
+This build uses a bundled VELIN Keychain XPC component. It accepts only the same-signed VELIN app and accesses only VELIN provider-key items. Existing keys stay in login Keychain. On its first read, approve VELIN Keychain with Always Allow in macOS. Its signed binary is reused across ordinary UI/model updates, keeping the legacy Keychain partition identity stable. A changed component, signing identity, build toolchain, or a Keychain lock/reset can require renewed approval. No login item, all-app credential access, or system trust change is installed.
+
+Stopping Listen smoothly collapses the live audio strip. The full transcript and any unanswered spoken question remain in the session’s Conversation/Transcript pages.

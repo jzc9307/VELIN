@@ -1,76 +1,119 @@
-<p align="center"><img src="docs/assets/readme-banner.svg" alt="VELIN — A quieter kind of clarity" width="100%"></p>
+<div align="center">
 
-<p align="center"><strong>A native personal AI workspace for your Mac.</strong><br>Live transcription · Screenshot questions · Meeting notes · Five secure AI connections</p>
+<img src="docs/assets/readme-banner.svg" alt="VELIN — Free. Open source. Your AI, your choice." width="1200" />
 
-<p align="center">SwiftUI + AppKit · macOS 14+ · Apple Silicon · Bring your own key · MIT</p>
+# VELIN
 
-VELIN keeps useful help within reach while you stay with the conversation. Open a slim floating assistant bar, listen when you choose, ask about your screen, and leave with notes you can actually use. No VELIN account or subscription is required. Your AI provider bills its own usage.
+**A better Cluely alternative. Free, open source, and under your control.**
 
-## What it does
+A native Mac assistant that listens to the conversation, puts the other side’s words in front of you,<br />
+and gives you a concise answer when you press **Enter**.
 
-- **Five AI slots:** OpenAI, Claude, Gemini, OpenRouter, Groq, Ollama and custom compatible endpoints. Pick a model, paste a key, save it in Keychain, and choose your active connection. Multiple slots may use the same provider.
-- **A native assistant:** movable floating bar with an expandable response, menu-bar controls, global keyboard shortcuts, original mint/lilac interface and VELIN emblem.
-- **Live text:** microphone and computer audio transcribed separately through Apple Speech, requiring on-device recognition by default. Audio files are not retained.
-- **Screen context:** requested screenshots are previewed before sending to a vision-capable model and are not saved to session history.
-- **Personal context:** General, Meeting, Coding, Study, Sales and Custom modes, custom instructions, and text/PDF context files.
-- **A useful record:** searchable local session history, editable AI-generated notes, transcript import and Markdown export.
-- **A gentle start:** permission setup plus an interactive five-step practice tutorial that sends/captures nothing.
+**FREE APP · NO VELIN SUBSCRIPTION · BRING YOUR OWN AI · MIT LICENSE**
 
-## Start
+[Download & install](#download--install) · [All versions](#all-versions) · [Features](#made-for-the-moment) · [User guide](docs/USER-GUIDE.md) · [Build from source](#build-from-source)
 
-Open the current **VELIN.app** in the outer workspace folder. Follow [Start here](docs/START-HERE.md), add a connection under **AI Connections**, and open the assistant. The [user guide](docs/USER-GUIDE.md) explains data flow, audio, models and troubleshooting.
+</div>
 
-| Action | Shortcut |
-| --- | --- |
-| Show / hide assistant | Control + Option + Space |
-| Ask from current context | Control + Option + Return |
-| Start / stop listening | Control + Option + L |
-| Attach screenshot | Control + Option + S |
-| Move visible assistant | Command + arrow keys |
-| Hide assistant | Escape |
+---
 
-## Build from source
+## Free means free
 
-Requires an Apple Silicon Mac with macOS 14+, Apple's Command Line Tools (or Xcode), and Python 3. No npm packages, API secrets, or downloaded model weights are needed to compile.
+**VELIN costs $0 to download and use.** No VELIN account, subscription, or paid feature unlocks. The source is available under the MIT license.
 
-```bash
-xcode-select --install  # only if the Apple developer tools are missing
-bash scripts/test.sh
-bash scripts/build.sh
-```
+You choose the AI connection. Commercial providers bill API usage separately; their chat subscriptions do not include API credits. You can also connect a local model through Ollama, with no VELIN or API subscription. Local models run on your own hardware.
 
-A fresh clone creates `dist/VELIN.app`. In the local workspace, the `.velin-workspace` marker keeps the current app beside this source folder and caches in the outer `work/` folder. Quit VELIN before replacing its bundle. Use the included VS Code build/test/release tasks. The icon can be regenerated with `python3 scripts/make-icon.py`.
+## Why choose VELIN over Cluely?
 
-## Privacy and practical limits
+VELIN is built to be a better fit for people who want a free app, their own providers, and control over their data:
 
-Keys are stored in macOS Keychain. Session/configuration text is written atomically to `~/Library/Application Support/VELIN`, with owner-only filesystem permissions. It is not separately encrypted by VELIN. The repository's `.env.example` is a blank reference only; the app never stores keys there.
+- **Your AI, your choice.** Keep up to five connections and switch between OpenAI, Claude, Gemini, OpenRouter, Groq, Ollama, or a compatible endpoint.
+- **Speak, then press Enter.** The other side’s speech becomes a live question in Conversation. Press Enter in VELIN, or Control+Option+Return from another app, to answer without typing.
+- **Answers you can read at a glance.** A short answer first, followed by rounded Say this, Next step and Explain more buttons. Ready buttons reveal content prepared in the same request.
+- **A compact native interface.** A movable floating bar, aligned controls, smooth opening and closing sections, and the original mint/lilac design.
+- **Local history and secure keys.** API keys stay in macOS Keychain through a VELIN-only authenticated component; sessions and notes stay on your Mac. Relevant context goes to the provider only when you ask.
+- **Source you can inspect and change.** Build your own version and keep using it without a VELIN service account.
 
-When you ask a question or generate notes, relevant transcript, chat, instructions and attached context go to the selected provider. Screenshots are sent only when attached. Provider processing, credits, model access and retention still apply; a consumer chat subscription is separate from API access. Unsupported on-device speech languages fail visibly rather than silently switching to cloud processing.
+VELIN is independent software with its own code, artwork, and provider integrations. Broad performance comparisons have not been benchmarked.
 
-**Capture exclusion is best effort, not guaranteed invisibility.** VELIN requests the legacy NSWindow sharing hint only when enabled. Modern sharing/recording apps can still capture it. See [Apple's documentation](https://developer.apple.com/documentation/appkit/nswindow/sharingtype-swift.enum/none). No process hiding or proctoring bypass is implemented. Computer-audio text is labeled by input source, not individual participant.
+## Download & install
 
-This is early independent software, not feature-for-feature parity with Cluely. No Cluely code, branding, packaged tools or backend endpoints are bundled. Calendar sync, cloud sync, automatic meeting detection and broad capture-app certification are not included. Live paid-provider behavior requires your key and account access. Local builds use a persistent self-signed identity stored on the build Mac. Run `python3 scripts/signing.py setup` once before the first build. Developer ID signing and notarization are not configured.
+Download the **VELIN-X.Y.Z-macOS-arm64.dmg** attached to the GitHub Release you choose from All versions. Open the DMG, drag **VELIN.app → Applications**, eject the disk, and open VELIN from Applications.
 
-## All versions
+**Apple Silicon · macOS 14+ · Early release**
 
-Versioned DMG downloads appear here after actual publication. Previous downloads are preserved; no historical releases are invented.
+The current installer is prepared locally for manual upload. Public download links are added after an actual GitHub Release is published. This build uses a local self-signed identity and is **not Apple-notarized**; macOS may require approval under Privacy & Security.
+
+### All versions
 
 <!-- VERSIONS:START -->
 | Version | Status | macOS download |
 | --- | --- | --- |
-| 0.1.0 | Newest · local | Not published |
+| 0.1.1 | Newest · prepared | Not published |
+| 0.1.0 | Local · archived | Not published |
 <!-- VERSIONS:END -->
 
-See [release instructions](docs/GITHUB.md), [release history](docs/RELEASES.md), [changelog](CHANGELOG.md), and [verification](docs/VERIFICATION.md). A future “push to GitHub” request defaults to the next patch release; ordinary Git pushes only synchronize commits.
+Every published version keeps its own DMG link. Newest prepared versions have no invented public download URL. See [release history](docs/RELEASES.md) and [changelog](CHANGELOG.md).
 
-## Architecture
+## Made for the moment
 
-```text
-SwiftUI workspace / floating AppKit panel
-  ├─ five provider profiles → Keychain → streamed AI adapters
-  ├─ AVAudioEngine + ScreenCaptureKit → Apple Speech → transcript
-  ├─ requested screenshot → attachment preview → selected provider
-  └─ local session store → history / notes / Markdown export
+| Feature | How it works |
+| --- | --- |
+| Listen → Enter → answer | Computer audio supplies the other side’s question; your microphone adds context. Nothing is automatically sent for an AI answer. |
+| Continuous local speech | Supported languages use Apple’s continuous local engine on macOS 27+. Earlier systems/languages use the legacy Apple Speech path, with on-device recognition required by default. |
+| Screen questions | Attach a screenshot, review its preview, then ask a vision-capable model. |
+| Personal context | Set your own instructions and add text, Markdown, JSON or text-based PDF documents. |
+| Conversation modes | General, Meeting, Coding, Study, Sales and Custom. |
+| Notes and history | Search local sessions, generate/edit notes, import transcripts and export Markdown. |
+| Quiet presentation | Hide the Dock and menu-bar icons, recover through a shortcut, and request best-effort capture exclusion. |
+
+### Quick start
+
+1. Open **AI Connections**, choose a provider and model, paste its API key, and save. Ollama uses your local server.
+2. Enable the audio sources you want and approve macOS permissions during setup.
+3. Start **Listen** while your call runs on this Mac. Read the other side’s words in Conversation or the floating bar.
+4. Press **Enter** with VELIN focused, or **Control+Option+Return** from Teams or another app.
+
+The full transcript is available separately. You can type your own question at any time. See [Start here](docs/START-HERE.md) and the [user guide](docs/USER-GUIDE.md).
+
+| Action | Shortcut |
+| --- | --- |
+| Answer the pending spoken question in VELIN | Enter |
+| Ask / answer from another app | Control + Option + Return |
+| Show / hide assistant | Control + Option + Space |
+| Start / stop listening | Control + Option + L |
+| Attach screenshot | Control + Option + S |
+| Move the visible assistant | Command + arrow keys |
+| Hide assistant | Escape |
+
+## Privacy and practical limits
+
+- **Keys:** stored in macOS Keychain, never in source, settings JSON, or an `.env` file.
+- **Sessions:** stored locally in `~/Library/Application Support/VELIN` with owner-only file permissions. VELIN does not add a separate encryption password.
+- **AI requests:** relevant transcript, chat, personal instructions and attached context go to your selected provider when you ask or generate notes. The provider’s processing and retention rules apply.
+- **Audio:** captured only after Listen; no audio recording files are retained. Computer audio can contain multiple apps/people and is labeled by source, not individual speaker.
+- **Capture exclusion:** a best-effort legacy macOS hint. **No guarantee of invisibility in every screen-sharing app.** See [Apple’s sharing-type documentation](https://developer.apple.com/documentation/appkit/nswindow/sharingtype-swift.enum/none).
+- **Availability:** provider models, credits and service capacity affect responses. There is no promise of zero initial AI latency. Speech language availability depends on macOS and its installed assets.
+
+## Build from source
+
+Requires an Apple Silicon Mac, macOS 14+, Apple Command Line Tools or Xcode, and Python 3. The continuous macOS 27 speech path requires a macOS 27 SDK / Swift 6.4 toolchain; older toolchains compile the legacy path.
+
+```bash
+xcode-select --install  # if the Apple developer tools are missing
+bash scripts/test.sh
+python3 scripts/signing.py setup  # one-time local signing identity in your login Keychain
+bash scripts/build.sh
 ```
 
-Source has no runtime package dependencies. Provider icon assets are pinned and bundled offline with provenance and their license. See [third-party notices](THIRD-PARTY.md). VELIN code and original artwork use the [MIT license](LICENSE).
+A fresh clone creates `dist/VELIN.app`. `--check` compiles without signing or installing. No API credentials, private signing keys, or model weights are needed to compile. Speech assets may be prepared when you first use Listen.
+
+In the local Project workspace, the inner **VELIN/** folder is the Git root, the one current **VELIN.app** sits beside it, caches stay in **work/**, and versioned installers stay in **outputs/**. Quit the app before replacing it. The signing identity supports local Keychain continuity; it is not Developer ID signing or notarization. Never upload its private key or `.local-signing.json`.
+
+## Releases and contributing
+
+Open the inner source folder in VS Code and push it to your chosen repository. Upload the prepared DMG, app/source ZIPs and checksums through GitHub Releases. Paste the supplied release-notes Markdown into the release description. Follow [GitHub upload instructions](docs/GITHUB-UPLOAD.md) and the [release workflow](docs/GITHUB.md).
+
+A release request prepares the next patch, such as **0.1.0 → 0.1.1 → 0.1.2**. Retrying the same prepared release keeps its version. Ordinary Git commits or VS Code Push do not bump the app version.
+
+Source has no runtime package dependencies. Preserve the bundled provider icon credits and licenses in [THIRD-PARTY.md](THIRD-PARTY.md). VELIN code and original artwork use the [MIT license](LICENSE). See [verification](docs/VERIFICATION.md) for what was actually tested.

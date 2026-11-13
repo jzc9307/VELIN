@@ -34,3 +34,11 @@ Treat that as a request for the next versioned app release unless the user expli
 - `python3 scripts/release.py publish --dry-run`: preview publication without remote changes.
 
 GitHub CLI authentication is needed only to publish. Do not store its credentials here. Do not push until the user supplies/chooses the repository destination.
+
+## Manual GitHub upload
+
+The user currently pushes source themselves from VS Code and uploads the prepared DMG through GitHub Releases. Keep source in the canonical inner folder. Prepare versioned assets and NOTES.md in outer outputs/vX.Y.Z; do not push or create a repository for this manual-upload request. After the user supplies an actual published release URL, verify the remote release/tag/assets, update the main README download history plus its mirrors, and remove the matching prepared record. If a future release request finds a pending version already published manually, complete that record first, then prepare the next requested release.
+
+## Credential component continuity
+
+The user explicitly approved the VELIN-only XPC credential component after reviewing its scope. Keep its source contract independent of the main app: only the app identifier signed with the same certificate may connect, with the same-user check and reciprocal service verification. Restrict item access to app.velin.assistant.providers and validated profile UUIDs. Preserve JoinExistingSession for the standard macOS authorization UI. Reuse the signed broker from the source/toolchain/signing-identity cache across UI updates; never remove LC_UUID or re-sign/modify an unchanged helper. Changes to its actual implementation may require a new user Keychain approval. Never allow arbitrary clients, broaden Keychain partitions to all apps, export a real key, or claim approval survives an OS Keychain reset. Run python3 Tests/check_credentials.py for the isolated signed IPC checks; it queries only a random absent slot.

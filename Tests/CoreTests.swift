@@ -1,4 +1,5 @@
 import Foundation
+import CoreGraphics
 
 @main struct CoreTests {
     static var count = 0
@@ -16,6 +17,13 @@ import Foundation
         try expect(!visibility.complete(firstShow) && visibility.complete(newestShow) && visibility.phase == .visible, "Rapid toggles settle on the latest visible target")
         let lastHide = visibility.request(visible: false)!
         try expect(visibility.complete(lastHide) && visibility.phase == .hidden && !visibility.targetVisible, "Latest hide completes and stays hidden")
+        let screen = CGRect(x: 0, y: 0, width: 1440, height: 900)
+        let smallPanel = CGRect(x: 300, y: 650, width: 660, height: 120)
+        let largerPanel = AssistantPanelGeometry.frame(current: smallPanel, screen: screen, listening: true, expanded: true, image: false, error: false, warning: false)
+        try expect(largerPanel.maxY == smallPanel.maxY && largerPanel.width == smallPanel.width, "Opening answer and listening sections preserves the top toolbar position")
+        let shortScreen = CGRect(x: -900, y: 0, width: 900, height: 600)
+        let constrained = AssistantPanelGeometry.frame(current: smallPanel, screen: shortScreen, listening: true, expanded: true, image: true, error: true, warning: true)
+        try expect(shortScreen.insetBy(dx: 16, dy: 16).contains(constrained), "Expanded assistant remains inside a smaller display")
         let sampleReply = "True—the left side of `or` is True.\n[[VELIN_SAY]]\nThe expression is true because `or` short-circuits.\n[[VELIN_NEXT]]\nCheck how parentheses affect the result.\n[[VELIN_MORE]]\nPython evaluates `not`, then `and`, then `or`."
         let packaged = ReplyPackage.parse(sampleReply, final: true)
         try expect(packaged.answer == "True—the left side of `or` is True." && packaged.extras?.say == "The expression is true because `or` short-circuits.", "Optional replies stay outside the concise answer")

@@ -5,7 +5,7 @@ import Speech
 import OSLog
 import CoreAudio
 
-protocol SpeechInput: AnyObject {
+protocol SpeechInput: AnyObject, Sendable {
     var partial: (String, String) -> Void { get set }
     var final: (String, String) -> Void { get set }
     var failure: (String) -> Void { get set }
@@ -97,6 +97,7 @@ final class SpeechChannel: SpeechInput, @unchecked Sendable {
 
 // The modern analyzer supports continuous local streams without repeatedly
 // cancelling and recreating legacy recognition requests.
+#if compiler(>=6.4)
 @available(macOS 27, *)
 final class StreamingSpeechChannel: SpeechInput, @unchecked Sendable {
     let source: String
@@ -208,6 +209,8 @@ final class StreamingSpeechChannel: SpeechInput, @unchecked Sendable {
     }
 }
 
+#endif
+
 final class AudioCapture: NSObject, SCStreamOutput, SCStreamDelegate, @unchecked Sendable {
     private var engine: AVAudioEngine?
     private var stream: SCStream?
@@ -215,6 +218,7 @@ final class AudioCapture: NSObject, SCStreamOutput, SCStreamDelegate, @unchecked
     private var computer: (any SpeechInput)?
     private var rotateTimer: Timer?
     private var microphoneTapInstalled = false
+    private let setupQueue = DispatchQueue(label: "app.velin.assistant.audio-setup", qos: .userInitiated)
     var partial: (String, String) -> Void = { _, _ in }
     var final: (String, String) -> Void = { _, _ in }
     var failure: (String) -> Void = { _ in }
@@ -255,20 +259,37 @@ final class AudioCapture: NSObject, SCStreamOutput, SCStreamDelegate, @unchecked
     @MainActor private func startMicrophone(_ config: Configuration) async throws {
         guard AVCaptureDevice.authorizationStatus(for: .audio) == .authorized else { throw VelinError.message("Allow Microphone in Audio & Permissions.") }
         let channel = try await channel("You", config); microphone = channel; try await channel.begin()
-        let engine = AVAudioEngine(); self.engine = engine
-        let input = engine.inputNode, format = input.outputFormat(forBus: 0)
-        microphoneName(Self.inputDeviceName(input))
-        guard format.sampleRate > 0, format.channelCount > 0 else { throw VelinError.message("No microphone is available. Check the macOS default input device.") }
         let token = captureGeneration
-        input.installTap(onBus: 0, bufferSize: 2048, format: format) { [weak self, weak channel] buffer, _ in
-            channel?.append(buffer)
-            var value: Double = 0
-            if let samples = buffer.floatChannelData?[0], buffer.frameLength > 0 {
-                value = Self.normalizedLevel(UnsafeBufferPointer(start: samples, count: Int(buffer.frameLength)))
+        let prepared: (AVAudioEngine, String) = try await withCheckedThrowingContinuation { continuation in
+            setupQueue.async { [weak self, weak channel] in
+                let engine = AVAudioEngine()
+                let input = engine.inputNode, format = input.outputFormat(forBus: 0)
+                guard format.sampleRate > 0, format.channelCount > 0 else {
+                    continuation.resume(throwing: VelinError.message("No microphone is available. Check the macOS default input device.")); return
+                }
+                let name = Self.inputDeviceName(input)
+                input.installTap(onBus: 0, bufferSize: 2048, format: format) { [weak self, weak channel] buffer, _ in
+                    channel?.append(buffer)
+                    var value: Double = 0
+                    if let samples = buffer.floatChannelData?[0], buffer.frameLength > 0 {
+                        value = Self.normalizedLevel(UnsafeBufferPointer(start: samples, count: Int(buffer.frameLength)))
+                    }
+                    DispatchQueue.main.async { guard let self, self.captureGeneration == token, self.microphone != nil else { return }; self.markReceived("You"); self.level(value) }
+                }
+                do {
+                    engine.prepare(); try engine.start()
+                    continuation.resume(returning: (engine, name))
+                } catch {
+                    engine.stop(); input.removeTap(onBus: 0)
+                    continuation.resume(throwing: error)
+                }
             }
-            DispatchQueue.main.async { guard let self, self.captureGeneration == token, self.microphone != nil else { return }; self.markReceived("You"); self.level(value) }
         }
-        microphoneTapInstalled = true; engine.prepare(); try engine.start()
+        guard captureGeneration == token else {
+            prepared.0.stop(); prepared.0.inputNode.removeTap(onBus: 0)
+            throw CancellationError()
+        }
+        self.engine = prepared.0; microphoneTapInstalled = true; microphoneName(prepared.1)
     }
     @MainActor private func startComputer(_ config: Configuration) async throws {
         guard CGPreflightScreenCaptureAccess() else { throw VelinError.message("Allow Screen & System Audio Recording in Audio & Permissions, then reopen VELIN if macOS asks.") }
@@ -290,7 +311,8 @@ final class AudioCapture: NSObject, SCStreamOutput, SCStreamDelegate, @unchecked
         var address = AudioObjectPropertyAddress(mSelector: kAudioObjectPropertyName, mScope: kAudioObjectPropertyScopeGlobal, mElement: kAudioObjectPropertyElementMain)
         var name: Unmanaged<CFString>?; size = UInt32(MemoryLayout<Unmanaged<CFString>?>.size)
         guard AudioObjectGetPropertyData(device, &address, 0, nil, &size, &name) == noErr, let name else { return "macOS default input" }
-        return name.takeRetainedValue() as String
+        let value = name.takeRetainedValue() as String
+        return value.hasPrefix("CADefaultDeviceAggregate-") ? "macOS default input" : value
     }
     private func stopMicrophone() {
         engine?.stop()
@@ -325,6 +347,7 @@ final class AudioCapture: NSObject, SCStreamOutput, SCStreamDelegate, @unchecked
     }
     @MainActor private func channel(_ source: String, _ config: Configuration) async throws -> any SpeechInput {
         let channel: any SpeechInput
+        #if compiler(>=6.4)
         if #available(macOS 27, *), SpeechTranscriber.isAvailable,
            let locale = await SpeechTranscriber.supportedLocale(equivalentTo: Locale(identifier: config.language)) {
             sourceState(source, "Preparing local speech…")
@@ -332,6 +355,9 @@ final class AudioCapture: NSObject, SCStreamOutput, SCStreamDelegate, @unchecked
         } else {
             channel = try SpeechChannel(source: source, locale: config.language, localOnly: config.localSpeechOnly)
         }
+        #else
+        channel = try SpeechChannel(source: source, locale: config.language, localOnly: config.localSpeechOnly)
+        #endif
         channel.partial = partial; channel.final = final
         channel.failure = { [weak self] message in
             guard let self else { return }

@@ -12,6 +12,7 @@ import ScreenCaptureKit
     @Published var session = Session()
     @Published var page = "Overview"
     @Published var setupStep = 0
+    var showLiveAudio: Bool { recording || startingAudio }
     @Published var recording = false
     @Published var startingAudio = false
     @Published var generating = false
@@ -169,7 +170,7 @@ import ScreenCaptureKit
     }
     func startListening() {
         guard !recording, !startingAudio else { return }
-        startingAudio = true; error = nil; liveTranscriptPreview = ""; audioWarning = ""; refreshPermissions()
+        startingAudio = true; error = nil; liveTranscriptPreview = ""; audioWarning = ""; refreshPermissions(); showOverlay()
         Task { [self] in
             defer { startingAudio = false }
             do {

@@ -11,5 +11,5 @@ jobs:
         run: python3 scripts/release.py preflight
       - name: Run tests
         run: bash scripts/test.sh
-      - name: Build signed local app
-        run: bash scripts/build.sh
+      - name: Compile app without installing signing credentials
+        run: bash scripts/build.sh --check

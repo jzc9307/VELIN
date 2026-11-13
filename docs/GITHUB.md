@@ -4,6 +4,8 @@ Open the inner VELIN folder in VS Code. That folder is the Git root. The outer f
 
 Use an empty GitHub repository and add its URL with `git remote add origin YOUR_REPOSITORY_URL`. Build caches, app bundles, DMGs, ZIPs, .env files, keys and user session data are excluded from Git. Use Releases for app downloads. The repository has a local README banner, original icon, license, third-party notices, changelog, CI and VS Code tasks.
 
+The user currently pushes from VS Code and uploads release files manually. Follow [the upload guide](GITHUB-UPLOAD.md). The ready-to-upload files and NOTES.md are grouped by version in the outer outputs/vX.Y.Z folder.
+
 ## A versioned release
 
 “Push to GitHub” means a versioned release by default, following AGENTS.md. A normal VS Code Push only synchronizes commits. VERSION and BUILD_NUMBER are the sources of app metadata. Published versions must retain their own main README download rows; normal newest releases get Latest.
@@ -16,7 +18,7 @@ Use an empty GitHub repository and add its URL with `git remote add origin YOUR_
 6. Mount the DMG read-only, verify VELIN.app signature and Applications shortcut, and unmount. Confirm the metadata and checksums. Developer ID notarization is not configured: the persistent local self-signed identity supports development continuity, not Apple verification or public distribution. Never export or commit its private key.
 7. Install/sign into GitHub CLI if needed. Inspect `python3 scripts/release.py publish --dry-run`. Then use `python3 scripts/release.py publish` when publication is authorized. This pushes main/tag without force, stages a draft, uploads absent assets, publishes Latest, verifies assets, and commits the real download catalog. Never overwrite a published version or force a historical tag.
 
-The initial 0.1.0 is local, not published. No repository URL, download link or historical release is invented. The initial release notes are in release-history.json. For the initial 0.1.0 publication, package that baseline directly rather than preparing a second version; future release requests use a patch.
+The 0.1.0 baseline is local and archived; 0.1.1 is the current prepared release. No repository URL, download link or historical release is invented. The initial release notes are in release-history.json. Upload the current prepared version and preserve earlier local archives; future release requests use a patch.
 
 ## GitHub appearance
 
