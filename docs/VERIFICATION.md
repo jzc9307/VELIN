@@ -1,3 +1,17 @@
+# Current release verification · 14 November 2026
+
+Target: **VELIN 0.1.2 (build 3)**. macOS Apple Silicon plus a new Windows x64 preview. The records below this section are historical and describe the exact state at their dates; earlier ad-hoc signing references do not describe the current Mac build.
+
+- **Mac:** 106 standard checks (69 core/transport/geometry, 5 release, 32 profile/audio/workflow). The previous installed input/full-screen build was tested on macOS 27.0.1; the user confirmed both visibility and typing over full-screen Safari. No claim for every exclusive-full-screen app.
+- **Credential component:** three isolated signed IPC checks; only random absent slots, with no real API-key reads. The previously approved component is reused without changing its executable or access scope. Mac builds use the persistent local self-signed identity, not Developer ID/notarization.
+- **Windows:** 60 shared-core checks run on macOS for provider payloads and auth placement, endpoint restrictions, image attachment, transcript edits/consumption/bounds, cached reply parsing, local storage, SSE adapters and redacted errors. They use fake credentials and synthetic handlers, never real APIs or captured audio/images.
+- **Windows build:** .NET SDK 10.0.403, self-contained `win-x64` single-file executable. Compilation passes without warnings/errors; PE headers identify x86-64 Windows GUI format. Portable ZIP includes its guide/license/runtime notices. Windows signing is not configured.
+- **Windows runtime remains untested:** no Windows VM/device is attached. Microphone/default-output capture, installed Speech recognizer compatibility, actual UI sizing/focus/animation, shortcuts, capture exclusion and antivirus acceptance have not been established. The smaller preview feature set is documented in WINDOWS.md. The added Windows GitHub Actions build is prepared, not claimed as a completed remote CI run.
+- **Installed Mac 0.1.2:** reopened successfully and the native About page displays Version 0.1.2. The credential build reported that its signed component was reused unchanged. The 106 standard checks and all three isolated signed IPC checks pass for this release source.
+- **Release:** preserve the verified published 0.1.1 DMG/tag. Prepare 0.1.2 under `outputs/v0.1.2`, using one clean commit for both platform builds and source ZIP. Verify the Mac DMG read-only, its signature/metadata/Applications link, both executable metadata records and all checksums before handoff. This task does not push or publish.
+
+---
+
 # Verification · 13 November 2026
 
 Build: VELIN 0.1.0 (1), Apple Silicon, tested on macOS 27.0.1 with Apple Command Line Tools. The app targets macOS 14+. Older supported macOS releases have not been independently tested.

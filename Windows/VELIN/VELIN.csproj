@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType><TargetFramework>net10.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms><EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable>
+    <AssemblyName>VELIN</AssemblyName><RootNamespace>Velin.Windows</RootNamespace>
+    <ApplicationIcon>../../Resources/VELIN.ico</ApplicationIcon>
+    <Version>$([System.IO.File]::ReadAllText('$(MSBuildThisFileDirectory)../../VERSION').Trim())</Version>
+    <FileVersion>$(Version).$([System.IO.File]::ReadAllText('$(MSBuildThisFileDirectory)../../BUILD_NUMBER').Trim())</FileVersion>
+    <PublishSingleFile>true</PublishSingleFile><SelfContained>true</SelfContained>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <DebugType>none</DebugType><RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+  </PropertyGroup>
+  <ItemGroup><ProjectReference Include="../VELIN.Core/VELIN.Core.csproj" /></ItemGroup>
+  <ItemGroup><PackageReference Include="NAudio" Version="2.2.1" /><PackageReference Include="System.Speech" Version="10.0.14" /></ItemGroup>
+</Project>

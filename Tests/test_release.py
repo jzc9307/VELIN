@@ -21,5 +21,10 @@ class Releases(unittest.TestCase):
     def test_mismatch_detected(self):
         (self.root/'BUILD_NUMBER').write_text('999\n');self.assertRaises(AssertionError,release.check)
     def test_no_invented_download(self):
-        release.sync(release.catalog());self.assertIn('Not published',(self.root/'README.md').read_text());self.assertNotIn('releases/download',(self.root/'README.md').read_text())
+        history=release.catalog();published=[e.get('url') for e in history if e.get('url')];release.sync(history)
+        text=(self.root/'README.md').read_text();self.assertIn('Not published',text)
+        for link in published:self.assertIn(link,text)
+        for entry in history:
+            if not entry.get('url'):
+                row=next(line for line in text.splitlines() if line.startswith('| '+entry['version']+' |'));self.assertNotIn('https://',row)
 if __name__=='__main__':unittest.main()

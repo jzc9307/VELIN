@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+No pending changes.
+
+## [0.1.2]
+
+- Introduce a native Windows x64 preview with a self-contained portable EXE, five Credential Manager AI connections, streaming chat, screenshots, local history/notes/export, editable speech drafts, local microphone/default-output recognition, tray recovery and global shortcuts. Cross-compiled and shared-core tested; Windows runtime testing remains required.
+- Restyle the README with a centered product introduction, platform/feature badges, quick navigation and a clear free-app message. Preserve published macOS downloads and add separate Windows preview release tracking.
+- Package both platforms under one version, with portable Windows ZIP/notices, exact-commit source and SHA-256 checksums.
+
 - Keep the editable floating assistant eligible to join other apps’ full-screen Spaces and Stage Manager sets, and restore its ordering after Space changes.
 
 - Transfer keyboard focus to VELIN when clicking the question or transcript editor, including over another app; focus the question after screenshot attachment, and prioritize screenshot questions over unrelated pending speech.

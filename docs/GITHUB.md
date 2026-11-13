@@ -14,16 +14,16 @@ The user currently pushes from VS Code and uploads release files manually. Follo
 2. Run `python3 scripts/release.py prepare` (patch default). An existing prepared version is reused.
 3. Run `bash scripts/test.sh` and `python3 scripts/release.py preflight`; review the complete diff.
 4. Quit VELIN, then run `bash scripts/build.sh`. Verify the app and appropriate runtime behaviors.
-5. Commit the reviewed source on main with your configured identity. Run `python3 scripts/release.py package` to build the DMG, app/source ZIPs and checksums from that exact clean commit.
+5. Commit the reviewed source on main with your configured identity. Build the Windows preview from that commit with `python3 scripts/build-windows.py` (.NET SDK 10 required). Run `python3 scripts/release.py package` to build the DMG, Windows EXE/ZIP, app/source ZIPs and checksums from that exact clean commit.
 6. Mount the DMG read-only, verify VELIN.app signature and Applications shortcut, and unmount. Confirm the metadata and checksums. Developer ID notarization is not configured: the persistent local self-signed identity supports development continuity, not Apple verification or public distribution. Never export or commit its private key.
 7. Install/sign into GitHub CLI if needed. Inspect `python3 scripts/release.py publish --dry-run`. Then use `python3 scripts/release.py publish` when publication is authorized. This pushes main/tag without force, stages a draft, uploads absent assets, publishes Latest, verifies assets, and commits the real download catalog. Never overwrite a published version or force a historical tag.
 
-The 0.1.0 baseline is local and archived; 0.1.1 is the current prepared release. No repository URL, download link or historical release is invented. The initial release notes are in release-history.json. Upload the current prepared version and preserve earlier local archives; future release requests use a patch.
+The 0.1.0 baseline is local and archived; 0.1.1 has a verified published macOS release. The next requested release is 0.1.2, including the Windows preview. No repository URL, download link or historical release is invented. The initial release notes are in release-history.json. Upload the current prepared version and preserve earlier local archives; future release requests use a patch.
 
 ## GitHub appearance
 
-Suggested description: “A native macOS personal AI workspace with live transcription, screenshot questions, local meeting notes, and five secure bring-your-own-key connections.”
+Suggested description: “A free, open-source macOS and Windows personal AI workspace with live transcription, screenshot questions, local meeting notes, and five secure bring-your-own-key connections.”
 
-Suggested topics: macos, swift, swiftui, appkit, ai-assistant, meeting-notes, speech-recognition, screen-capture, bring-your-own-key, apple-silicon.
+Suggested topics: macos, windows, dotnet, winforms, swift, swiftui, appkit, ai-assistant, meeting-notes, speech-recognition, screen-capture, bring-your-own-key, apple-silicon.
 
 The repository owner's avatar is separate from the app logo and README. `Resources/icon.png` is the app/avatar artwork; docs/assets/readme-banner.svg is the original banner. Setting a profile avatar or repository visibility is a separate user choice.

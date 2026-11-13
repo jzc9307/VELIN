@@ -1,17 +1,20 @@
 <div align="center">
 
-<img src="docs/assets/readme-banner.svg" alt="VELIN — Free. Open source. Your AI, your choice." width="1200" />
-
 # VELIN
 
-**A better Cluely alternative. Free, open source, and under your control.**
+---
 
-A native Mac assistant that listens to the conversation, puts the other side’s words in front of you,<br />
-and gives you a concise answer when you press **Enter**.
+**Stay in the conversation. Find the words. Keep your own AI.**
 
-**FREE APP · NO VELIN SUBSCRIPTION · BRING YOUR OWN AI · MIT LICENSE**
+A free, open-source desktop assistant for macOS and Windows.<br />
+Live questions, concise answers, and your choice of AI — in one compact workspace.
 
-[Download & install](#download--install) · [All versions](#all-versions) · [Features](#made-for-the-moment) · [User guide](docs/USER-GUIDE.md) · [Build from source](#build-from-source)
+<img src="docs/assets/feature-badges.svg" alt="SwiftUI · Windows EXE · Your own AI · Local speech · Free app · Open source" width="1200" />
+
+[Quick start](#quick-start) · [Download](#download--install) · [All versions](#all-versions) · [Product tour](#made-for-the-moment) · [Windows guide](docs/WINDOWS.md) · [Development](#build-from-source)
+
+**FREE TO DOWNLOAD. FREE TO USE. NO VELIN SUBSCRIPTION.**<br />
+AI provider API usage is billed separately. macOS early release · Windows x64 preview.
 
 </div>
 
@@ -31,29 +34,33 @@ VELIN is built to be a better fit for people who want a free app, their own prov
 - **Speak, then press Enter.** The other side’s speech becomes a live question in Conversation. Press Enter in VELIN, or Control+Option+Return from another app, to answer without typing.
 - **Answers you can read at a glance.** A short answer first, followed by rounded Say this, Next step and Explain more buttons. Ready buttons reveal content prepared in the same request.
 - **A compact native interface.** A movable floating bar, aligned controls, smooth opening and closing sections, and the original mint/lilac design.
-- **Local history and secure keys.** API keys stay in macOS Keychain through a VELIN-only authenticated component; sessions and notes stay on your Mac. Relevant context goes to the provider only when you ask.
+- **Local history and secure keys.** API keys stay in macOS Keychain through a VELIN-only authenticated component, or Windows Credential Manager. Sessions and notes stay on your device. Relevant context goes to the provider only when you ask.
 - **Source you can inspect and change.** Build your own version and keep using it without a VELIN service account.
 
 VELIN is independent software with its own code, artwork, and provider integrations. Broad performance comparisons have not been benchmarked.
 
 ## Download & install
 
-Download the **VELIN-X.Y.Z-macOS-arm64.dmg** attached to the GitHub Release you choose from All versions. Open the DMG, drag **VELIN.app → Applications**, eject the disk, and open VELIN from Applications.
+| Platform | Download | Install |
+| --- | --- | --- |
+| **macOS · Apple Silicon** | `VELIN-X.Y.Z-macOS-arm64.dmg` | Open DMG, drag **VELIN → Applications**, eject, then open VELIN. macOS 14+. |
+| **Windows · x64 preview** | `VELIN-X.Y.Z-Windows-x64.zip` or `.exe` | Extract ZIP and open **VELIN.exe**. Portable, includes .NET runtime. Windows 11 x64. |
 
-**Apple Silicon · macOS 14+ · Early release**
+**Windows releases start at v0.1.2.** Versions 0.1.0 and 0.1.1 are macOS-only. Both platforms share the release number from 0.1.2 onward.
 
-The current installer is prepared locally for manual upload. Public download links are added after an actual GitHub Release is published. This build uses a local self-signed identity and is **not Apple-notarized**; macOS may require approval under Privacy & Security.
+Choose an actual published asset below, or upload the prepared local files through GitHub Releases. The macOS app is locally self-signed and **not Apple-notarized**. The Windows EXE is **unsigned** and has not yet been run on Windows; [preview scope and setup](docs/WINDOWS.md) lists the differences and required runtime checks. A Windows build is not evidence of Windows feature parity or call reliability.
 
 ### All versions
 
 <!-- VERSIONS:START -->
-| Version | Status | macOS download |
-| --- | --- | --- |
-| 0.1.1 | Newest · prepared | Not published |
-| 0.1.0 | Local · archived | Not published |
+| Version | Status | macOS · Apple Silicon | Windows · x64 |
+| --- | --- | --- | --- |
+| 0.1.2 | Newest · prepared | Not published | Preview · not published |
+| 0.1.1 | Latest | [DMG](https://github.com/jzc9307/VELIN/releases/download/v0.1.1/VELIN-0.1.1-macOS-arm64.dmg) | Not available |
+| 0.1.0 | Local · archived | Not published | Not available |
 <!-- VERSIONS:END -->
 
-Every published version keeps its own DMG link. Newest prepared versions have no invented public download URL. See [release history](docs/RELEASES.md) and [changelog](CHANGELOG.md).
+Every published version keeps its own macOS and available Windows links. Newest prepared versions have no invented public download URL. See [release history](docs/RELEASES.md) and [changelog](CHANGELOG.md).
 
 ## Made for the moment
 
@@ -70,11 +77,13 @@ Every published version keeps its own DMG link. Newest prepared versions have no
 ### Quick start
 
 1. Open **AI Connections**, choose a provider and model, paste its API key, and save. Ollama uses your local server.
-2. Enable the audio sources you want and approve macOS permissions during setup.
-3. Start **Listen** while your call runs on this Mac. Read the other side’s words in Conversation or the floating bar.
-4. Press **Enter** with VELIN focused, or **Control+Option+Return** from Teams or another app.
+2. Enable your audio sources and approve macOS permissions, or install a matching local Windows Speech language in the Windows preview.
+3. Start **Listen** while your call runs on this computer. Read the other side’s words in Conversation or the floating bar.
+4. Press **Enter** with VELIN focused. From another app, use **Control+Option+Return** on Mac or **Ctrl+Alt+Enter** on Windows.
 
 The full transcript is available separately. You can type your own question at any time. See [Start here](docs/START-HERE.md) and the [user guide](docs/USER-GUIDE.md).
+
+Mac shortcuts (see the [Windows shortcuts](docs/WINDOWS.md#shortcuts) for the preview):
 
 | Action | Shortcut |
 | --- | --- |
@@ -86,16 +95,22 @@ The full transcript is available separately. You can type your own question at a
 | Move the visible assistant | Command + arrow keys |
 | Hide assistant | Escape |
 
+The feature tour above describes the native Mac app. Windows includes the core workflow, with a different local speech engine and a smaller feature set: see [Windows preview scope](docs/WINDOWS.md#preview-scope).
+
 ## Privacy and practical limits
 
-- **Keys:** stored in macOS Keychain, never in source, settings JSON, or an `.env` file.
-- **Sessions:** stored locally in `~/Library/Application Support/VELIN` with owner-only file permissions. VELIN does not add a separate encryption password.
+- **Keys:** stored in macOS Keychain or Windows Credential Manager, never in source, settings JSON, or an `.env` file.
+- **Sessions:** stored locally in `~/Library/Application Support/VELIN` with owner-only file permissions on Mac, or `%LOCALAPPDATA%\VELIN` under your Windows account. VELIN does not add a separate encryption password.
 - **AI requests:** relevant transcript, chat, personal instructions and attached context go to your selected provider when you ask or generate notes. The provider’s processing and retention rules apply.
 - **Audio:** captured only after Listen; no audio recording files are retained. Computer audio can contain multiple apps/people and is labeled by source, not individual speaker.
 - **Capture exclusion:** a best-effort legacy macOS hint. **No guarantee of invisibility in every screen-sharing app.** See [Apple’s sharing-type documentation](https://developer.apple.com/documentation/appkit/nswindow/sharingtype-swift.enum/none).
 - **Availability:** provider models, credits and service capacity affect responses. There is no promise of zero initial AI latency. Speech language availability depends on macOS and its installed assets.
 
 ## Build from source
+
+For Windows, use **.NET SDK 10** and `python scripts/build-windows.py`. The self-contained x64 EXE, guide and notices are written to ignored build output. See the [Windows build guide](docs/WINDOWS.md#build-from-source).
+
+### macOS
 
 Requires an Apple Silicon Mac, macOS 14+, Apple Command Line Tools or Xcode, and Python 3. The continuous macOS 27 speech path requires a macOS 27 SDK / Swift 6.4 toolchain; older toolchains compile the legacy path.
 
@@ -112,8 +127,8 @@ In the local Project workspace, the inner **VELIN/** folder is the Git root, the
 
 ## Releases and contributing
 
-Open the inner source folder in VS Code and push it to your chosen repository. Upload the prepared DMG, app/source ZIPs and checksums through GitHub Releases. Paste the supplied release-notes Markdown into the release description. Follow [GitHub upload instructions](docs/GITHUB-UPLOAD.md) and the [release workflow](docs/GITHUB.md).
+Open the inner source folder in VS Code and push it to your chosen repository. Upload the prepared DMG, Windows EXE/ZIP, app/source ZIPs and checksums through GitHub Releases. Paste the supplied release-notes Markdown into the release description. Follow [GitHub upload instructions](docs/GITHUB-UPLOAD.md) and the [release workflow](docs/GITHUB.md).
 
 A release request prepares the next patch, such as **0.1.0 → 0.1.1 → 0.1.2**. Retrying the same prepared release keeps its version. Ordinary Git commits or VS Code Push do not bump the app version.
 
-Source has no runtime package dependencies. Preserve the bundled provider icon credits and licenses in [THIRD-PARTY.md](THIRD-PARTY.md). VELIN code and original artwork use the [MIT license](LICENSE). See [verification](docs/VERIFICATION.md) for what was actually tested.
+The Mac app uses system frameworks; the Windows preview bundles .NET, NAudio and System.Speech with their notices. Preserve the bundled provider icon credits and licenses in [THIRD-PARTY.md](THIRD-PARTY.md). VELIN code and original artwork use the [MIT license](LICENSE). See [verification](docs/VERIFICATION.md) for what was actually tested.

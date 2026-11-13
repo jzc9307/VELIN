@@ -9,10 +9,11 @@ def project(): return ROOT.parent if (ROOT.parent/'.velin-workspace').exists() e
 def catalog(): return json.loads((ROOT/'release-history.json').read_text())
 def sync(history):
     (ROOT/'release-history.json').write_text(json.dumps(history, indent=2)+'\n')
-    rows=['| Version | Status | macOS download |','| --- | --- | --- |']
+    rows=['| Version | Status | macOS · Apple Silicon | Windows · x64 |','| --- | --- | --- | --- |']
     for entry in reversed(history):
         link=f"[DMG]({entry['url']})" if entry.get('url') else 'Not published'
-        rows.append(f"| {entry['version']} | {entry['status']} | {link} |")
+        windows=f"[EXE · preview]({entry['windows_url']})" if entry.get('windows_url') else ('Preview · not published' if entry.get('windows_preview') else 'Not available')
+        rows.append(f"| {entry['version']} | {entry['status']} | {link} | {windows} |")
     table='\n'.join(rows)
     p=ROOT/'README.md'; text=p.read_text(); a='<!-- VERSIONS:START -->'; b='<!-- VERSIONS:END -->'
     p.write_text(text[:text.index(a)+len(a)]+'\n'+table+'\n'+text[text.index(b):])
@@ -39,7 +40,7 @@ def prepare(bump='patch'):
     history=catalog()
     for old in history:
         if not old.get('url'):old['status']='Local · archived'
-    history.append({'version':v,'build':int(build),'status':'Newest · prepared','url':None,'notes':notes});sync(history)
+    history.append({'version':v,'build':int(build),'status':'Newest · prepared','url':None,'windows_preview':(ROOT/'Windows/VELIN').exists(),'notes':notes});sync(history)
     p=ROOT/'CHANGELOG.md';p.write_text(p.read_text().replace('## [Unreleased]\n'+p.read_text().split('## [Unreleased]\n',1)[1].split('\n## ',1)[0],f'## [Unreleased]\n\nNo pending changes.\n\n## [{v}]\n\n{notes}\n',1))
     pending.parent.mkdir(exist_ok=True);pending.write_text(json.dumps({'version':v,'build':build})+'\n');check()
 def preflight():
@@ -79,7 +80,7 @@ def package():
             if pathlib.Path(name).name!=name or hashlib.sha256((export/name).read_bytes()).hexdigest()!=digest:raise SystemExit('Existing package checksum mismatch. Inspect the archive before proceeding.')
         print('Reusing verified package: '+str(export));return
     if out.exists():
-        allowed=lambda p:p.is_file() and (p.name in ('SHA256SUMS.txt','manifest.json','NOTES.md') or re.fullmatch(r'VELIN-[0-9.]+-(?:macOS-arm64|source)\.(?:zip|dmg)',p.name))
+        allowed=lambda p:p.is_file() and (p.name in ('SHA256SUMS.txt','manifest.json','NOTES.md') or re.fullmatch(r'VELIN-[0-9.]+-(?:macOS-arm64|Windows-x64|source)\.(?:zip|dmg|exe)',p.name))
         if not all(allowed(p) for p in out.iterdir()):raise SystemExit('Unexpected release-staging files; review them before packaging.')
         shutil.rmtree(out)
     out.mkdir(parents=True)
@@ -91,13 +92,23 @@ def package():
     shutil.copy2(installer,out/installer.name)
     run(['ditto','-c','-k','--keepParent',str(app),str(out/f'VELIN-{v}-macOS-arm64.zip')])
     run(['git','archive','--format=zip','--prefix=VELIN/','-o',str(out/f'VELIN-{v}-source.zip'),'HEAD'])
+    windows=ROOT/'Windows/VELIN'
+    if windows.exists():
+        record=project()/'work/windows-build.json';build_dir=project()/'work/windows-x64.noindex'
+        if not record.exists():raise SystemExit('Build the Windows preview with scripts/build-windows.py first.')
+        metadata=json.loads(record.read_text());exe=build_dir/'VELIN.exe'
+        if metadata.get('version')!=v or metadata.get('build')!=(ROOT/'BUILD_NUMBER').read_text().strip() or metadata.get('commit')!=run(['git','rev-parse','HEAD']):raise SystemExit('Rebuild Windows from this clean release commit.')
+        if not exe.exists() or metadata.get('sha256')!=hashlib.sha256(exe.read_bytes()).hexdigest():raise SystemExit('Windows executable checksum mismatch.')
+        shutil.copy2(exe,out/f'VELIN-{v}-Windows-x64.exe')
+        with zipfile.ZipFile(out/f'VELIN-{v}-Windows-x64.zip','w',zipfile.ZIP_DEFLATED) as archive:
+            for name in ['VELIN.exe','WINDOWS.md','THIRD-PARTY-NOTICES.txt','LICENSE.txt']:archive.write(build_dir/name,'VELIN/'+name)
     sums=[]
     for p in sorted(out.iterdir()):
-        if p.suffix in ('.zip','.dmg'):sums.append(hashlib.sha256(p.read_bytes()).hexdigest()+'  '+p.name)
+        if p.suffix in ('.zip','.dmg','.exe'):sums.append(hashlib.sha256(p.read_bytes()).hexdigest()+'  '+p.name)
     (out/'SHA256SUMS.txt').write_text('\n'.join(sums)+'\n')
-    (out/'manifest.json').write_text(json.dumps({'version':v,'commit':run(['git','rev-parse','HEAD'])},indent=2)+'\n')
+    (out/'manifest.json').write_text(json.dumps({'version':v,'commit':run(['git','rev-parse','HEAD']),'platforms':['macOS-arm64','Windows-x64-preview'],'windows_runtime_tested':False},indent=2)+'\n')
     entry=next(x for x in catalog() if x['version']==v)
-    notes='# VELIN '+v+'\n\n**Free and open source. No VELIN subscription.** AI provider API usage is billed separately.\n\n'+entry.get('notes','')+'\n\nApple Silicon · macOS 14+. Continuous local speech requires macOS 27 and a supported language; other systems use the legacy path. This build is locally self-signed, not Developer ID signed or Apple-notarized.\n'
+    notes='# VELIN '+v+'\n\n**Free and open source. No VELIN subscription.** AI provider API usage is billed separately.\n\n'+entry.get('notes','')+'\n\nApple Silicon · macOS 14+. Continuous local speech requires macOS 27 and a supported language; other systems use the legacy path. This build is locally self-signed, not Developer ID signed or Apple-notarized.\n\nWindows 11 x64 preview: portable, self-contained EXE (ZIP includes guide and notices). Unsigned; cross-compiled on macOS. Windows runtime/audio/UI testing remains required; it is not full Mac feature parity.\n'
     (out/'NOTES.md').write_text(notes)
     export=project()/'outputs'/('v'+v);export.mkdir(parents=True,exist_ok=True)
     for item in out.iterdir():shutil.copy2(item,export/item.name)
@@ -124,14 +135,14 @@ def publish(dry=False):
         notes=out/'NOTES.md';notes.write_text(entry.get('notes','Initial VELIN release.'))
         run(['gh','release','create',tag,'--draft','--title',f'VELIN {v}','--notes-file',str(notes)])
     elif not json.loads(result.stdout)['isDraft']:raise SystemExit('Release already published. Inspect it before proceeding; assets were not overwritten.')
-    assets=[str(p) for p in out.iterdir() if p.suffix in ('.dmg','.zip') or p.name=='SHA256SUMS.txt']
+    assets=[str(p) for p in out.iterdir() if p.suffix in ('.dmg','.zip','.exe') or p.name=='SHA256SUMS.txt']
     existing=json.loads(run(['gh','release','view',tag,'--json','assets']))['assets'];names={a['name'] for a in existing}
     for asset in assets:
         if pathlib.Path(asset).name not in names:run(['gh','release','upload',tag,asset])
     run(['gh','release','edit',tag,'--draft=false','--latest'])
     result=json.loads(run(['gh','release','view',tag,'--json','url,assets,isDraft']))
     if result['isDraft'] or not {pathlib.Path(a).name for a in assets}.issubset({a['name'] for a in result['assets']}):raise SystemExit('Release verification failed.')
-    entry['url']=next(a['url'] for a in result['assets'] if a['name'].endswith('.dmg'));entry['status']='Latest'
+    entry['url']=next(a['url'] for a in result['assets'] if a['name'].endswith('.dmg'));entry['status']='Latest';entry['windows_url']=next((a['url'] for a in result['assets'] if a['name'].endswith('-Windows-x64.exe')),None)
     for old in history:
         if old!=entry and old.get('url'):old['status']='Published'
     sync(history);run(['git','add','README.md','release-history.json','docs/RELEASES.md']);run(['git','commit','-m',f'Record published VELIN {v} download']);run(['git','push','origin','main'])
