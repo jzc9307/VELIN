@@ -55,7 +55,7 @@ Choose an actual published asset below, or upload the prepared local files throu
 <!-- VERSIONS:START -->
 | Version | Status | macOS · Apple Silicon | Windows · x64 |
 | --- | --- | --- | --- |
-| 0.1.2 | Newest · prepared | [DMG](https://github.com/jzc9307/VELIN/releases/tag/v0.1.2) | [DMG](https://github.com/jzc9307/VELIN/releases/tag/v0.1.2) |
+| 0.1.2 | Newest · prepared | [DMG](https://github.com/jzc9307/VELIN/releases/tag/v0.1.2) | [EXE](https://github.com/jzc9307/VELIN/releases/tag/v0.1.2) |
 | 0.1.1 | Latest | [DMG](https://github.com/jzc9307/VELIN/releases/download/v0.1.1/VELIN-0.1.1-macOS-arm64.dmg) | Not available |
 | 0.1.0 | Local · archived | Not published | Not available |
 <!-- VERSIONS:END -->
