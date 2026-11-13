@@ -1,0 +1,15 @@
+name: macOS checks
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  test-and-build:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check source and release metadata
+        run: python3 scripts/release.py preflight
+      - name: Run tests
+        run: bash scripts/test.sh
+      - name: Build signed local app
+        run: bash scripts/build.sh

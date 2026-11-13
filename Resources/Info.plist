@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleDisplayName</key>
+	<string>VELIN</string>
+	<key>CFBundleExecutable</key>
+	<string>VELIN</string>
+	<key>CFBundleIconFile</key>
+	<string>VELIN.icns</string>
+	<key>CFBundleIdentifier</key>
+	<string>app.velin.assistant</string>
+	<key>CFBundleName</key>
+	<string>VELIN</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>0.1.0</string>
+	<key>CFBundleVersion</key>
+	<string>1</string>
+	<key>LSMinimumSystemVersion</key>
+	<string>14.0</string>
+	<key>LSMultipleInstancesProhibited</key>
+	<true/>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
+	<key>NSAudioCaptureUsageDescription</key>
+	<string>VELIN transcribes computer audio only when you start listening.</string>
+	<key>NSHighResolutionCapable</key>
+	<true/>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>VELIN transcribes your microphone only when you start listening.</string>
+	<key>NSScreenCaptureUsageDescription</key>
+	<string>VELIN captures computer audio during sessions and takes screenshots only when you request them.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>VELIN turns session audio into text using Apple speech recognition. On-device recognition is the default.</string>
+</dict>
+</plist>

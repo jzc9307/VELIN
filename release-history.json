@@ -1,0 +1,9 @@
+[
+  {
+    "version": "0.1.0",
+    "build": 1,
+    "status": "Newest \u00b7 local",
+    "url": null,
+    "notes": "First independent VELIN build with native workspace, setup, tutorial, five AI slots, audio transcription, screenshot questions, and local history."
+  }
+]

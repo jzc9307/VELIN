@@ -1,0 +1,37 @@
+{
+  "package": "@lobehub/icons-static-png",
+  "version": "2.6.0",
+  "source": "https://registry.npmjs.org/@lobehub/icons-static-png/-/icons-static-png-2.6.0.tgz",
+  "assets": [
+    {
+      "file": "openai.png",
+      "packagePath": "dark/openai.png",
+      "sha256": "375016542ebe78b63c7f36b8f6aee3058f2b706d861e5153fd74f9c27f63b8b7"
+    },
+    {
+      "file": "claude.png",
+      "packagePath": "dark/claude-color.png",
+      "sha256": "97b53fb85b3bf401ffeb8ee7c5ebad734ce9f6edc3038f242021c53bcc18e23d"
+    },
+    {
+      "file": "gemini.png",
+      "packagePath": "dark/gemini-color.png",
+      "sha256": "10c628f55d22a9725b9f9fccce7cf062b9fb68da5f7736e87010e0594d7ba6db"
+    },
+    {
+      "file": "openrouter.png",
+      "packagePath": "dark/openrouter.png",
+      "sha256": "de7c51476f81c54f0caa5f872d94bbf4f670084363dac70572a87fc60625b096"
+    },
+    {
+      "file": "groq.png",
+      "packagePath": "dark/groq.png",
+      "sha256": "de0d9a7dc3b6419ba9c4c546b8f76273e4d46469340089a8d8aa85e010febe8f"
+    },
+    {
+      "file": "ollama.png",
+      "packagePath": "dark/ollama.png",
+      "sha256": "601c558832e50aa51e25782429de683fec8885da5fc3a29431fa4f611adf3dad"
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {"label":"VELIN: Build app","type":"shell","command":"bash scripts/build.sh","group":{"kind":"build","isDefault":true},"problemMatcher":[]},
+    {"label":"VELIN: Test","type":"shell","command":"bash scripts/test.sh","group":"test","problemMatcher":[]},
+    {"label":"VELIN: Prepare next patch","type":"shell","command":"python3 scripts/release.py prepare","problemMatcher":[]},
+    {"label":"VELIN: Package release","type":"shell","command":"python3 scripts/release.py package","problemMatcher":[]},
+    {"label":"VELIN: Release plan","type":"shell","command":"python3 scripts/release.py publish --dry-run","problemMatcher":[]}
+  ]
+}

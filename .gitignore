@@ -1,0 +1,14 @@
+.DS_Store
+.env
+.env.*
+!.env.example
+*.app/
+*.dmg
+*.zip
+work/
+dist/
+.release/
+.build/
+*.xcuserstate
+__pycache__/
+*.pyc
