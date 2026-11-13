@@ -221,10 +221,10 @@ final class Hotkeys {
             window.center()
         }
         UserDefaults.standard.set(true, forKey: "compactWorkspaceFrameV1")
-        panel = AssistantPanel(contentRect: NSRect(x: 0, y: 0, width: 660, height: 120), styleMask: [.borderless, .resizable], backing: .buffered, defer: false)
+        panel = AssistantPanel(contentRect: NSRect(x: 0, y: 0, width: 660, height: 120), styleMask: [.borderless, .resizable, .nonactivatingPanel], backing: .buffered, defer: false)
         panel.isReleasedWhenClosed = false
         panel.onDismiss = { [weak self] in self?.hidePanel() }; panel.title = "VELIN Assistant"; panel.isFloatingPanel = true; panel.becomesKeyOnlyIfNeeded = false; panel.level = .floating; panel.hidesOnDeactivate = false
-        panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
+        panel.collectionBehavior = [.canJoinAllSpaces, .canJoinAllApplications, .fullScreenAuxiliary, .fullScreenDisallowsTiling]
         panel.isMovableByWindowBackground = true; panel.isOpaque = false; panel.backgroundColor = .clear
         panel.hasShadow = true; panel.minSize = NSSize(width: 540, height: 118); panel.maxSize = NSSize(width: 900, height: 760)
         panel.setFrameAutosaveName("VELINAssistant")
@@ -244,6 +244,13 @@ final class Hotkeys {
         baseSections.combineLatest(listeningSection, model.$audioWarning.map { !$0.isEmpty }.removeDuplicates())
             .receive(on: RunLoop.main)
             .sink { [weak self] _, _, _ in self?.resizePanel() }.store(in: &subscriptions)
+        NSWorkspace.shared.notificationCenter.publisher(for: NSWorkspace.activeSpaceDidChangeNotification)
+            .receive(on: RunLoop.main).sink { [weak self] _ in
+                guard let self, self.assistantVisibility.targetVisible else { return }
+                // Reassert the existing overlay after a Space/full-screen switch,
+                // without activating VELIN or reopening an intentionally hidden bar.
+                self.panel.orderFrontRegardless()
+            }.store(in: &subscriptions)
         installMenus(); applyProtection()
         hotkeys.action = { [weak self] id in
             guard let self else { return }

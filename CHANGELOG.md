@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- Keep the editable floating assistant eligible to join other apps’ full-screen Spaces and Stage Manager sets, and restore its ordering after Space changes.
+
 - Transfer keyboard focus to VELIN when clicking the question or transcript editor, including over another app; focus the question after screenshot attachment, and prioritize screenshot questions over unrelated pending speech.
 - Make live spoken questions editable and scrollable; preserve corrections while transcription continues, with Resume live and a bounded newest-text view.
 - Increase button hit targets, hover contrast, press borders and spring feedback, with matching hover borders/backgrounds on the Meeting and AI-provider menus.
