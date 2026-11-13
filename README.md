@@ -49,7 +49,8 @@ The current installer is prepared locally for manual upload. Public download lin
 <!-- VERSIONS:START -->
 | Version | Status | macOS download |
 | --- | --- | --- |
-| 0.1.1 | Newest · prepared | Not published |
+| 0.1.2 | Latest | [Download DMG](REAL_0_1_2_DMG_ASSET_URL) |
+| 0.1.1 | Published | [Download DMG](https://github.com/jzc9307/VELIN/releases/tag/v0.1.1) |
 | 0.1.0 | Local · archived | Not published |
 <!-- VERSIONS:END -->
 
