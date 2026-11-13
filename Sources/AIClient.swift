@@ -32,8 +32,8 @@ enum AIClient {
             }
             body = ["model": profile.model, "system": system, "messages": input, "stream": true, "max_tokens": 2048]
         } else if profile.provider == .gemini {
-            let model = profile.model.replacingOccurrences(of: "models/", with: "")
-            guard model.range(of: "^[a-zA-Z0-9._-]+$", options: .regularExpression) != nil else { throw VelinError.message("Enter a Gemini model ID, such as gemini-2.5-flash.") }
+            let model = profile.model.trimmingCharacters(in: .whitespacesAndNewlines).replacingOccurrences(of: "^models/", with: "", options: .regularExpression)
+            guard model.range(of: "^[a-zA-Z0-9._-]+$", options: .regularExpression) != nil else { throw VelinError.message("Enter a Gemini model ID, such as gemini-3.5-flash-lite.") }
             base.path += "/models/\(model):streamGenerateContent"; base.queryItems = [URLQueryItem(name: "alt", value: "sse")]
             headers["x-goog-api-key"] = key
             let input: [[String: Any]] = messages.enumerated().map { index, message in
@@ -57,6 +57,82 @@ enum AIClient {
         request.httpMethod = "POST"; request.allHTTPHeaderFields = headers
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
         return request
+    }
+
+    static func modelListRequest(profile: AIProfile, key: String, pageToken: String? = nil) throws -> URLRequest {
+        guard profile.provider == .gemini else { throw VelinError.message("Model refresh is available for Gemini connections.") }
+        // Reuse all endpoint and credential validation without sending a generation request.
+        var probe = profile; probe.model = "catalog-validation"
+        let validated = try request(profile: probe, key: key, system: "", messages: [])
+        var components = URLComponents(url: validated.url!, resolvingAgainstBaseURL: false)!
+        components.path = String(components.path.dropLast("/models/catalog-validation:streamGenerateContent".count)) + "/models"
+        components.queryItems = [URLQueryItem(name: "pageSize", value: "1000")]
+        if let pageToken { components.queryItems?.append(URLQueryItem(name: "pageToken", value: pageToken)) }
+        guard let url = components.url else { throw VelinError.message("The model-list URL is invalid.") }
+        var result = URLRequest(url: url, timeoutInterval: 30)
+        result.httpMethod = "GET"
+        result.setValue(key, forHTTPHeaderField: "x-goog-api-key")
+        result.setValue("application/json", forHTTPHeaderField: "Accept")
+        return result
+    }
+    static func models(profile: AIProfile, key: String) async throws -> [String] {
+        let config = URLSessionConfiguration.ephemeral
+        config.timeoutIntervalForRequest = 30; config.timeoutIntervalForResource = 60
+        let session = URLSession(configuration: config, delegate: NoRedirect(), delegateQueue: nil)
+        defer { session.invalidateAndCancel() }
+        var token: String?, seenTokens = Set<String>(), result = Set<String>()
+        for _ in 0..<10 {
+            try Task.checkCancellation()
+            let request = try modelListRequest(profile: profile, key: key, pageToken: token)
+            let (data, response) = try await session.data(for: request)
+            guard let response = response as? HTTPURLResponse else { throw VelinError.message("Invalid model-list response.") }
+            guard (200..<300).contains(response.statusCode) else { throw httpError(response.statusCode, request: request, provider: .gemini, body: data) }
+            guard data.count <= 2_000_000, let object = try JSONSerialization.jsonObject(with: data) as? [String: Any], let entries = object["models"] as? [[String: Any]] else { throw VelinError.message("Google returned an invalid model catalog.") }
+            for entry in entries {
+                guard (entry["supportedGenerationMethods"] as? [String])?.contains("generateContent") == true,
+                      let name = entry["name"] as? String, name.hasPrefix("models/") else { continue }
+                let id = String(name.dropFirst(7))
+                if id.count <= 160, id.range(of: "^[a-zA-Z0-9._-]+$", options: .regularExpression) != nil { result.insert(id) }
+            }
+            guard let next = object["nextPageToken"] as? String, !next.isEmpty else {
+                guard !result.isEmpty else { throw VelinError.message("No text-generation models were listed for this connection.") }
+                return result.sorted()
+            }
+            guard seenTokens.insert(next).inserted else { throw VelinError.message("The model catalog repeated a page. Try refreshing again.") }
+            token = next
+        }
+        throw VelinError.message("The model catalog exceeded the page limit. Try refreshing again.")
+    }
+    static func httpError(_ status: Int, request: URLRequest, provider: Provider, body: Data = Data()) -> VelinError {
+        let prefix = "\(provider.rawValue) returned HTTP \(status). "
+        var guidance: String
+        switch status {
+        case 401, 403: guidance = "Check this provider's API key, API permissions, and project access."
+        case 404:
+            guidance = "The model or API route was not found, or this project cannot access it. Check the model ID and API base URL."
+            let model = request.url?.lastPathComponent.components(separatedBy: ":").first ?? ""
+            if provider == .gemini, ["gemini-2.5-flash", "gemini-2.5-pro"].contains(model) {
+                guidance += " Gemini 2.5 Flash/Pro access is limited to existing users. Choose a current model, save, and test again."
+            }
+        case 429: guidance = "The provider's quota or rate limit was reached. Check project usage/billing, or wait before retrying."
+        case 500...599: guidance = "The provider is having a server problem. Try again shortly."
+        default: guidance = "Check the selected model, API endpoint, key, and provider account settings."
+        }
+        if provider == .gemini, request.url?.host == "generativelanguage.googleapis.com", request.url?.scheme == "https",
+           body.count <= 8192, let json = try? JSONSerialization.jsonObject(with: body) as? [String: Any],
+           let error = json["error"] as? [String: Any], let message = error["message"] as? String {
+            var clean = message.removingPercentEncoding ?? message
+            for name in ["x-goog-api-key", "x-api-key", "Authorization"] {
+                if let value = request.value(forHTTPHeaderField: name), !value.isEmpty {
+                    clean = clean.replacingOccurrences(of: value, with: "[redacted]")
+                    if value.hasPrefix("Bearer ") { clean = clean.replacingOccurrences(of: String(value.dropFirst(7)), with: "[redacted]") }
+                }
+            }
+            clean = clean.replacingOccurrences(of: "AIza[A-Za-z0-9_-]+|sk-[A-Za-z0-9_-]+|Bearer [A-Za-z0-9._-]+", with: "[redacted]", options: .regularExpression)
+            clean = clean.components(separatedBy: .whitespacesAndNewlines).filter { !$0.isEmpty }.joined(separator: " ")
+            if !clean.isEmpty { guidance = "Google: \(clean.prefix(500)) \(guidance)" }
+        }
+        return .message(prefix + guidance)
     }
 
     static func delta(_ json: [String: Any], provider: Provider) throws -> String {
@@ -86,8 +162,13 @@ enum AIClient {
         let (bytes, response) = try await session.bytes(for: request)
         guard let response = response as? HTTPURLResponse else { throw VelinError.message("Invalid response from the AI provider.") }
         guard (200..<300).contains(response.statusCode) else {
-            // Never echo a server body: custom servers may reflect credentials or private prompts.
-            throw VelinError.message("Provider returned HTTP \(response.statusCode). Check your model, API key, endpoint, and available credits.")
+            var body = Data()
+            // Only Google's official endpoint can supply a bounded, redacted explanation.
+            // Arbitrary/custom servers never get their reflected bodies shown.
+            if provider == .gemini, request.url?.host == "generativelanguage.googleapis.com", request.url?.scheme == "https" {
+                for try await byte in bytes { body.append(byte); if body.count >= 8192 { break } }
+            }
+            throw httpError(response.statusCode, request: request, provider: provider, body: body)
         }
         var received = false
         for try await line in bytes.lines {

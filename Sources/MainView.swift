@@ -24,7 +24,7 @@ struct MainView: View {
                         .overlay(UnevenRoundedRectangle(cornerRadii: .init(topLeading: 28, bottomLeading: 28)).strokeBorder(Ink.line))
                 }
             }
-        }.background(Ink.sidebar).foregroundStyle(.white.opacity(0.92)).preferredColorScheme(.dark)
+        }.background(Ink.sidebar).foregroundStyle(.white.opacity(0.92)).preferredColorScheme(.dark).scrollIndicators(.hidden)
             .overlay(alignment: .bottom) {
                 if !model.notice.isEmpty {
                     HStack { Text(model.notice).font(.system(size: 12)); Button { model.notice = "" } label: { Image(systemName: "xmark") }.buttonStyle(.plain) }

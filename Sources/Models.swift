@@ -18,7 +18,7 @@ enum Provider: String, Codable, CaseIterable, Identifiable {
         switch self {
         case .openAI: return ["gpt-4.1-mini", "gpt-4.1", "gpt-4o"]
         case .claude: return ["claude-sonnet-4-5", "claude-haiku-4-5"]
-        case .gemini: return ["gemini-2.5-flash", "gemini-2.5-pro"]
+        case .gemini: return ["gemini-3.5-flash-lite", "gemini-3.8-flash", "gemini-2.5-flash-lite"]
         case .openRouter: return ["openai/gpt-4.1-mini", "anthropic/claude-sonnet-4.5"]
         case .groq: return ["llama-3.3-70b-versatile", "openai/gpt-oss-120b"]
         case .ollama: return ["qwen3:8b", "gemma3:4b"]

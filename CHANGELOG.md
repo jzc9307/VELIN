@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+- Hide native scrollbar tracks and indicators while retaining trackpad, wheel and keyboard scrolling.
+- Refresh Gemini's paginated generation-model catalog from the selected endpoint, with header-only credentials and redirect blocking.
+- Update Gemini suggestions, normalize model IDs, and explain model-access, authorization, quota and endpoint failures with redacted Google diagnostics.
+- Clear stale connection results when editing or saving settings.
+
 - Launch the workspace at a compact 920 × 680 size, with a smaller resize limit, scrollable navigation, and adaptive Overview/AI Connections/setup layouts.
 - Migrate the original oversized window frame once and preserve subsequent manual resizing.
 

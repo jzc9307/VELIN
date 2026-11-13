@@ -78,6 +78,10 @@ struct ConnectionEditor: View {
     @ViewState var confirmRemove = false
     @ViewState var loaded = false
     @ViewState var hasSavedKey = false
+    @ViewState var catalog: [String] = []
+    @ViewState var loadingModels = false
+    @ViewState var catalogTask: Task<Void, Never>?
+    var modelChoices: [String] { catalog.isEmpty ? draft.provider.models : catalog }
     init(model: AppModel, original: AIProfile) {
         self.model = model; self.original = original
         _draft = ViewState(initialValue: original)
@@ -89,13 +93,20 @@ struct ConnectionEditor: View {
                 field("CONNECTION NAME") { TextField("My connection", text: $draft.name).velinField() }
                 field("AI PROVIDER") { Picker("Provider", selection: $draft.provider) { ForEach(Provider.allCases) { Text($0.rawValue).tag($0) } }.labelsHidden().pickerStyle(.menu).frame(maxWidth: .infinity, alignment: .leading) }
                 field("MODEL") {
-                    HStack { TextField("Model ID", text: $draft.model).velinField(); if !draft.provider.models.isEmpty { Menu { ForEach(draft.provider.models, id: \.self) { value in Button(value) { draft.model = value } } } label: { Image(systemName: "chevron.down") }.menuStyle(.borderlessButton).frame(width: 24) } }
-                    Text("Suggested IDs are editable. Availability depends on your provider account.").font(.system(size: 10)).foregroundStyle(Ink.muted)
+                    HStack { TextField("Model ID", text: $draft.model).velinField(); if !modelChoices.isEmpty { Menu { ForEach(modelChoices, id: \.self) { value in Button(value) { draft.model = value } } } label: { Text("Models") }.menuStyle(.borderlessButton).fixedSize() } }
+                    if draft.provider == .gemini {
+                        HStack(alignment: .top) {
+                            Text("Refresh Google's catalog, then choose a model. Listed models can still require project access.").font(.system(size: 10)).foregroundStyle(Ink.muted)
+                            Spacer(minLength: 10)
+                            Button(loadingModels ? "Loading…" : "Refresh models") { refreshModels() }.font(.system(size: 10)).buttonStyle(IconPress()).disabled(loadingModels || model.testingConnection)
+                        }
+                        if ["gemini-2.5-flash", "gemini-2.5-pro"].contains(draft.model) { Text("This legacy model is limited to projects with prior usage. Try a current Flash model if it returns 404.").font(.system(size: 10)).foregroundStyle(Ink.lilac) }
+                    } else { Text("Suggested IDs are editable. Availability depends on your provider account.").font(.system(size: 10)).foregroundStyle(Ink.muted) }
                 }
                 field("API BASE URL") { TextField("https://your-provider.example/v1", text: $draft.endpoint).velinField(); Text("The destination that receives your requests. HTTPS required except localhost.").font(.system(size: 10)).foregroundStyle(Ink.muted) }
                 field(draft.provider == .ollama ? "API KEY · OPTIONAL FOR LOCAL MODELS" : "API KEY") { SecureField(hasSavedKey ? "Key saved · paste here to replace it" : "Paste your API key", text: $key).velinField().privacySensitive(); Text(hasSavedKey ? "A key is saved in Keychain. Leaving this field blank preserves it." : "Stored for this slot in Keychain, never in the project or an .env file.").font(.system(size: 10)).foregroundStyle(Ink.muted) }
                 HStack {
-                    Button("Save connection") { do { try model.saveProfile(draft, key: key); key = ""; hasSavedKey = SecretStore.contains(original.id); localMessage = "Saved securely in Keychain." } catch { localMessage = error.localizedDescription } }.buttonStyle(Press(primary: true))
+                    Button("Save connection") { do { try model.saveProfile(draft, key: key); key = ""; hasSavedKey = SecretStore.contains(original.id); model.connectionResult = ""; localMessage = "Saved securely in Keychain." } catch { localMessage = error.localizedDescription } }.buttonStyle(Press(primary: true))
                     Button(model.testingConnection ? "Testing…" : "Test") { model.testConnection(draft, key: key.isEmpty && hasSavedKey ? SecretStore.read(original.id) : key) }.buttonStyle(Press()).disabled(model.testingConnection)
                     Spacer()
                     Button { confirmRemove = true } label: { Image(systemName: "trash") }.buttonStyle(Press()).help("Remove connection")
@@ -106,9 +117,29 @@ struct ConnectionEditor: View {
                 Divider().overlay(Ink.line)
                 Text("Test sends only “Connection test. Reply OK.” to this endpoint and may incur a small provider charge. It sends no transcript, documents, or screenshot.").font(.system(size: 10)).foregroundStyle(Ink.muted).lineSpacing(4)
             } }
-        }.onAppear { guard !loaded else { return }; hasSavedKey = SecretStore.contains(original.id); loaded = true }
-            .onChange(of: draft.provider) { _, provider in guard loaded else { return }; draft.endpoint = provider.endpoint; draft.model = provider.models.first ?? ""; key = ""; hasSavedKey = false; localMessage = "Paste a key for \(provider.rawValue)."; model.connectionResult = "" }
+        }.scrollIndicators(.hidden).onAppear { guard !loaded else { return }; hasSavedKey = SecretStore.contains(original.id); loaded = true }
+            .onChange(of: draft.provider) { _, provider in guard loaded else { return }; catalogTask?.cancel(); catalog = []; loadingModels = false; draft.endpoint = provider.endpoint; draft.model = provider.models.first ?? ""; key = ""; hasSavedKey = false; localMessage = "Paste a key for \(provider.rawValue)."; model.connectionResult = "" }
+            .onChange(of: draft.model) { _, _ in model.connectionResult = ""; localMessage = "" }
+            .onChange(of: draft.endpoint) { _, _ in catalogTask?.cancel(); catalog = []; loadingModels = false; model.connectionResult = "" }
+            .onDisappear { catalogTask?.cancel() }
             .alert("Remove this connection?", isPresented: $confirmRemove) { Button("Cancel", role: .cancel) {}; Button("Remove", role: .destructive) { model.deleteProfile(original.id) } } message: { Text("Its API key will be removed from Keychain. Your sessions stay saved.") }
+    }
+    func refreshModels() {
+        catalogTask?.cancel()
+        let profile = draft
+        let credential = key.isEmpty && hasSavedKey ? SecretStore.read(original.id) : key
+        loadingModels = true; localMessage = ""
+        catalogTask = Task { @MainActor in
+            do {
+                let values = try await AIClient.models(profile: profile, key: credential)
+                guard !Task.isCancelled else { return }
+                catalog = values; localMessage = "Loaded \(values.count) catalog models. Choose one, save, and test access."
+            } catch {
+                guard !Task.isCancelled else { return }
+                localMessage = error.localizedDescription
+            }
+            loadingModels = false
+        }
     }
     func field<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View { VStack(alignment: .leading, spacing: 8) { Text(title).font(.system(size: 9, weight: .semibold)).tracking(1.3).foregroundStyle(Ink.muted); content() } }
 }

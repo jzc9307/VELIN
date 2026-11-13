@@ -28,6 +28,22 @@ import Foundation
             else if provider == .gemini { try expect(req.url!.query=="alt=sse" && req.value(forHTTPHeaderField:"x-goog-api-key")==key && !req.url!.absoluteString.contains(key), "Gemini key is header-only") }
             else { try expect(req.url!.path.hasSuffix("/chat/completions"), "\(provider.rawValue) compatible endpoint") }
         }
+        var gemini = AIProfile(); gemini.provider = .gemini; gemini.endpoint = Provider.gemini.endpoint; gemini.model = " models/gemini-3.5-flash-lite \n"
+        let normalized = try AIClient.request(profile: gemini, key: key, system: "", messages: [])
+        try expect(normalized.url?.path == "/v1beta/models/gemini-3.5-flash-lite:streamGenerateContent", "Gemini request normalizes model prefix and whitespace")
+        let catalogRequest = try AIClient.modelListRequest(profile: gemini, key: key, pageToken: "next page")
+        try expect(catalogRequest.httpMethod == "GET" && catalogRequest.url?.path == "/v1beta/models" && catalogRequest.value(forHTTPHeaderField: "x-goog-api-key") == key && !catalogRequest.url!.absoluteString.contains(key), "Model catalog keeps credentials in a header")
+        let catalogQuery = URLComponents(url: catalogRequest.url!, resolvingAgainstBaseURL: false)!.queryItems!
+        try expect(catalogQuery.contains(URLQueryItem(name: "pageToken", value: "next page")), "Catalog pagination token is encoded as a query item")
+        let reflected = try JSONSerialization.data(withJSONObject: ["error": ["message": "Model unavailable. Reflected " + key + " and " + key.addingPercentEncoding(withAllowedCharacters: .alphanumerics)!]])
+        let diagnostic = AIClient.httpError(404, request: normalized, provider: .gemini, body: reflected).localizedDescription
+        try expect(diagnostic.contains("Model unavailable") && !diagnostic.contains(key) && diagnostic.contains("[redacted]"), "Official Google diagnostics redact reflected credentials")
+        var legacy = gemini; legacy.model = "gemini-2.5-flash"
+        let legacyRequest = try AIClient.request(profile: legacy, key: key, system: "", messages: [])
+        try expect(AIClient.httpError(404, request: legacyRequest, provider: .gemini).localizedDescription.contains("limited to existing users"), "Legacy Gemini 404 explains model access")
+        var untrusted = normalized; untrusted.url = URL(string: "https://custom.example/v1beta/models/fixture:streamGenerateContent")!
+        try expect(!AIClient.httpError(404, request: untrusted, provider: .gemini, body: reflected).localizedDescription.contains("Reflected"), "Custom endpoint error bodies are never echoed")
+        try expect(AIClient.httpError(429, request: normalized, provider: .gemini).localizedDescription.contains("quota"), "Quota errors explain the provider limit")
         let prior = try AIClient.request(profile: AIProfile(), key: key, system: "System", messages: [ChatMessage(role: "user", text: "First"), ChatMessage(role: "assistant", text: "Prior answer"), ChatMessage(role: "user", text: "Continue")])
         let priorBody = try object(prior)
         let priorInput = priorBody["input"] as! [[String: Any]]
@@ -69,6 +85,16 @@ import Foundation
                 try await AIClient.stream(request,provider:provider) { result += $0 }
                 try expect(result=="Hello world","\(provider.rawValue) full SSE transport")
             }
+            var catalogProfile = gemini; catalogProfile.endpoint = endpoint
+            let models = try await AIClient.models(profile: catalogProfile, key: key)
+            try expect(models == ["fixture-flash", "fixture-pro"], "Model catalog paginates, deduplicates and excludes unsupported IDs")
+            catalogProfile.endpoint = endpoint + "/catalog-loop"
+            do { _ = try await AIClient.models(profile: catalogProfile, key: key); throw VelinError.message("Accepted repeated catalog page") } catch { try expect(error.localizedDescription.contains("repeated a page"), "Catalog rejects repeated pagination tokens") }
+            catalogProfile.endpoint = endpoint + "/catalog-redirect"
+            do { _ = try await AIClient.models(profile: catalogProfile, key: key); throw VelinError.message("Followed catalog redirect") } catch { try expect(error.localizedDescription.contains("HTTP 302"), "Catalog redirects cannot forward credentials") }
+            catalogProfile.endpoint = endpoint + "/http404"; catalogProfile.model = "fixture"
+            let failedRequest = try AIClient.request(profile: catalogProfile, key: key, system: "", messages: [])
+            do { try await AIClient.stream(failedRequest, provider: .gemini) { _ in }; throw VelinError.message("Accepted HTTP 404") } catch { try expect(error.localizedDescription.contains("HTTP 404") && !error.localizedDescription.contains(key), "HTTP failures preserve status without reflecting custom-server credentials") }
             var p=AIProfile();p.provider = .custom;p.endpoint=endpoint+"/redirect"
             let request=try AIClient.request(profile:p,key:key,system:"fixture",messages:[ChatMessage(role:"user",text:"Test question")])
             do { try await AIClient.stream(request,provider:.custom) { _ in };throw VelinError.message("Followed redirect") } catch { try expect(error.localizedDescription.contains("HTTP 302"),"Provider redirect rejected") }

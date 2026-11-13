@@ -136,7 +136,7 @@ import ScreenCaptureKit
     }
     func testConnection(_ profile: AIProfile, key: String) {
         guard !testingConnection else { return }
-        testingConnection = true; connectionResult = "Connecting to \(URL(string: profile.endpoint)?.host ?? "provider")…"
+        testingConnection = true; error = nil; connectionResult = "Connecting to \(URL(string: profile.endpoint)?.host ?? "provider")…"
         testTask = Task {
             defer { testingConnection = false }
             do {

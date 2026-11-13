@@ -14,6 +14,10 @@ Overview opens the assistant, listening, capture and connection setup. Session h
 
 Up to five connection profiles contain provider/model/base URL metadata; only macOS Keychain holds the secrets. Change provider before pasting its key. Save connection retains it; Use this connection chooses the active destination. No automatic failover or key rotation occurs. Keys are editable in secure fields and excluded from exports. .env.example is documentation, not a plaintext credential store.
 
+Scrollbars are hidden throughout the workspace and assistant. Scroll with the trackpad, wheel, or keyboard to reach content below the window.
+
+For Gemini, **Refresh models** requests Google's model catalog using the connection's saved key (or its current replacement draft). It sends no chat or screenshot and makes no generation request. Select a model from **Models**, save, then **Test**. The catalog describes supported methods; project access, quota and billing can still restrict a listed model. The test sends only a short connection-check prompt. Gemini 2.5 Flash/Pro are legacy models restricted to prior users as of November 2026; current suggestions use newer Flash models. Nothing silently switches an existing profile or retries another provider. Google HTTP errors show a bounded explanation with the request credential removed; arbitrary endpoint bodies are not shown.
+
 Each question includes recent chat, up to 24,000 characters of transcript context, custom instructions and context files. Screenshots are attached only to the next question, removed from memory afterward, and never stored in history. Requests do not automatically transmit live audio to the AI provider. OpenAI requests set store=false; provider terms/retention still apply. Only HTTPS endpoints and HTTP localhost are allowed. HTTP redirects are rejected so credentials cannot silently follow to a different host.
 
 ## Audio

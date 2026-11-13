@@ -4,6 +4,23 @@ import Carbon
 import Combine
 import QuartzCore
 
+// Keep trackpad/wheel/keyboard scrolling, without reserving space for native
+// scrollers. SwiftUI's indicator preference alone is ignored by some macOS views.
+final class VelinHostingView<Content: View>: NSHostingView<Content> {
+    override func layout() {
+        super.layout()
+        suppressScrollers(in: self)
+    }
+    private func suppressScrollers(in view: NSView) {
+        if let scroll = view as? NSScrollView {
+            if scroll.hasVerticalScroller { scroll.hasVerticalScroller = false }
+            if scroll.hasHorizontalScroller { scroll.hasHorizontalScroller = false }
+            scroll.autohidesScrollers = true
+        }
+        for child in view.subviews { suppressScrollers(in: child) }
+    }
+}
+
 final class AssistantPanel: NSPanel {
     override var canBecomeKey: Bool { true }
     override var canBecomeMain: Bool { false }
@@ -82,7 +99,7 @@ struct OverlayView: View {
             .scaleEffect(reduceMotion ? 1 : (model.assistantPresented ? 1 : 0.97) * (model.config.captureProtection ? 0.97 : 1))
             .animation(reduceMotion ? nil : .timingCurve(0.22, 1, 0.36, 1, duration: 0.18), value: model.config.captureProtection)
             .offset(y: reduceMotion || model.assistantPresented ? 0 : 6)
-            .foregroundStyle(.white.opacity(0.95)).preferredColorScheme(.dark).onExitCommand { close() }
+            .foregroundStyle(.white.opacity(0.95)).preferredColorScheme(.dark).scrollIndicators(.hidden).onExitCommand { close() }
     }
 }
 
@@ -142,7 +159,7 @@ final class Hotkeys {
         window.title = "VELIN"; window.titleVisibility = .hidden; window.titlebarAppearsTransparent = true
         window.backgroundColor = NSColor(red: 0.047, green: 0.063, blue: 0.078, alpha: 1)
         window.minSize = NSSize(width: 800, height: 560); window.delegate = self
-        let workspaceHost = NSHostingView(rootView: MainView(model: model).ignoresSafeArea(.container, edges: .top).background(Ink.sidebar))
+        let workspaceHost = VelinHostingView(rootView: MainView(model: model).ignoresSafeArea(.container, edges: .top).background(Ink.sidebar))
         workspaceHost.sizingOptions = []
         workspaceHost.autoresizingMask = [.width, .height]
         window.contentView = workspaceHost
@@ -162,7 +179,7 @@ final class Hotkeys {
         panel.hasShadow = true; panel.minSize = NSSize(width: 540, height: 118); panel.maxSize = NSSize(width: 900, height: 760)
         panel.setFrameAutosaveName("VELINAssistant")
         if let screen = NSScreen.main { panel.setFrameOrigin(NSPoint(x: screen.visibleFrame.midX - 330, y: screen.visibleFrame.maxY - 158)) }
-        let panelHost = NSHostingView(rootView: OverlayView(model: model, close: { [weak self] in self?.hidePanel() }).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top))
+        let panelHost = VelinHostingView(rootView: OverlayView(model: model, close: { [weak self] in self?.hidePanel() }).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top))
         panelHost.sizingOptions = []
         panelHost.autoresizingMask = [.width, .height]
         panel.contentView = panelHost
