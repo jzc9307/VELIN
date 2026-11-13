@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+- Launch the workspace at a compact 920 × 680 size, with a smaller resize limit, scrollable navigation, and adaptive Overview/AI Connections/setup layouts.
+- Migrate the original oversized window frame once and preserve subsequent manual resizing.
+
 - Hide VELIN’s Dock/app-switcher and menu-bar icons in hidden mode; restore both when disabled, with keyboard/Finder recovery.
 - Animate the eye-button mode change to a slightly smaller assistant, respecting Reduce Motion.
 

@@ -6,6 +6,8 @@ The default assistant is a slim floating bar with a prompt, Screen, Listen, mode
 
 ## Workspace
 
+The workspace opens at 920 × 680 points and can resize down to 800 × 560. The original oversized saved frame is migrated once; later window sizes are remembered. Navigation scrolls on shorter windows, Overview cards reflow, and AI Connections uses a connection menu in compact windows.
+
 Overview opens the assistant, listening, capture and connection setup. Session has Conversation, Transcript and Notes tabs. New session preserves the current session and starts a fresh one after listening and generation stop. History searches titles, conversation, transcript and notes. Reopening a session allows continuing it.
 
 ## AI and privacy

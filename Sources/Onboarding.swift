@@ -3,25 +3,25 @@ import SwiftUI
 struct SetupView: View {
     @ObservedObject var model: AppModel
     var body: some View {
-        HStack(spacing: 0) {
+        GeometryReader { geometry in HStack(spacing: 0) {
             VStack(alignment: .leading, spacing: 0) {
                 HStack(spacing: 10) { VelinMark().frame(width: 30, height: 30); Text("VELIN").font(.system(size: 17, weight: .semibold)).tracking(3) }
                 Spacer()
-                Text("Less noise.\nMore presence.").font(.system(size: 43, weight: .regular, design: .serif)).tracking(-1.5).lineSpacing(1)
+                Text("Less noise.\nMore presence.").font(.system(size: geometry.size.width < 1000 ? 34 : 43, weight: .regular, design: .serif)).tracking(-1.5).lineSpacing(1)
                 Text("A thoughtful companion for the conversations that matter.").font(.system(size: 14)).foregroundStyle(Ink.muted).lineSpacing(6).padding(.top, 18)
-                SignalArtwork().frame(height: 210).padding(.vertical, 24)
+                SignalArtwork().frame(height: geometry.size.width < 1000 ? 140 : 210).padding(.vertical, 18)
                 Spacer()
                 HStack(spacing: 7) { ForEach(0..<3) { index in Capsule().fill(index <= model.setupStep ? Ink.mint : .white.opacity(0.12)).frame(width: index == model.setupStep ? 32 : 12, height: 3) } }
                 Text("\(min(model.setupStep+1, 3)) OF 3 · MAKE YOURSELF AT HOME").font(.system(size: 9, weight: .semibold)).tracking(1.4).foregroundStyle(Ink.muted).padding(.top, 15)
-            }.padding(42).frame(width: 360).frame(maxHeight: .infinity).background(LinearGradient(colors: [Color(hex: 0x192729), Ink.sidebar, Color(hex: 0x171A26)], startPoint: .topLeading, endPoint: .bottomTrailing))
+            }.padding(28).frame(width: geometry.size.width < 1000 ? 250 : 360).frame(maxHeight: .infinity).background(LinearGradient(colors: [Color(hex: 0x192729), Ink.sidebar, Color(hex: 0x171A26)], startPoint: .topLeading, endPoint: .bottomTrailing))
             Rectangle().fill(Ink.line).frame(width: 1)
             ScrollView { VStack(alignment: .leading, spacing: 24) {
                 HStack { Text(["WELCOME", "A LITTLE PERMISSION", "YOUR AI, YOUR CHOICE"][min(model.setupStep, 2)]).font(.system(size: 10, weight: .semibold)).tracking(2).foregroundStyle(Ink.mint); Spacer(); Button("Skip setup") { model.config.onboardingCompleted = true; model.saveConfig(); model.page = "Overview" }.buttonStyle(.plain).font(.system(size: 11)).foregroundStyle(Ink.muted) }
                 if model.setupStep == 0 { welcome }
                 else if model.setupStep == 1 { permissions }
                 else { connections }
-            }.padding(42).frame(maxWidth: 660, alignment: .leading) }.frame(maxWidth: .infinity)
-        }.onAppear { model.refreshPermissions() }
+            }.padding(28).frame(maxWidth: 660, alignment: .leading) }.frame(maxWidth: .infinity)
+        } }.onAppear { model.refreshPermissions() }
     }
     var welcome: some View {
         VStack(alignment: .leading, spacing: 24) {

@@ -137,16 +137,23 @@ final class Hotkeys {
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(model.config.captureProtection ? .accessory : .regular)
         NSApp.appearance = NSAppearance(named: .darkAqua)
-        window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1220, height: 840), styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView], backing: .buffered, defer: false)
+        window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 920, height: 680), styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView], backing: .buffered, defer: false)
         window.isReleasedWhenClosed = false
         window.title = "VELIN"; window.titleVisibility = .hidden; window.titlebarAppearsTransparent = true
         window.backgroundColor = NSColor(red: 0.047, green: 0.063, blue: 0.078, alpha: 1)
-        window.minSize = NSSize(width: 1050, height: 720); window.delegate = self
+        window.minSize = NSSize(width: 800, height: 560); window.delegate = self
         let workspaceHost = NSHostingView(rootView: MainView(model: model).ignoresSafeArea(.container, edges: .top).background(Ink.sidebar))
         workspaceHost.sizingOptions = []
         workspaceHost.autoresizingMask = [.width, .height]
         window.contentView = workspaceHost
-        window.setFrameAutosaveName("VELINWorkspace"); window.center()
+        window.setFrameAutosaveName("VELINWorkspace")
+        // Migrate the original oversized frame once, then respect manual resizing.
+        let compactFrameMigrated = UserDefaults.standard.bool(forKey: "compactWorkspaceFrameV1")
+        if !compactFrameMigrated || !window.setFrameUsingName("VELINWorkspace") {
+            window.setContentSize(NSSize(width: 920, height: 680))
+            window.center()
+        }
+        UserDefaults.standard.set(true, forKey: "compactWorkspaceFrameV1")
         panel = AssistantPanel(contentRect: NSRect(x: 0, y: 0, width: 660, height: 120), styleMask: [.borderless, .resizable, .nonactivatingPanel], backing: .buffered, defer: false)
         panel.isReleasedWhenClosed = false
         panel.onDismiss = { [weak self] in self?.hidePanel() }; panel.title = "VELIN Assistant"; panel.isFloatingPanel = true; panel.level = .floating; panel.hidesOnDeactivate = false

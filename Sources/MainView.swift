@@ -8,7 +8,7 @@ struct MainView: View {
             if model.page == "Setup" { SetupView(model: model) }
             else {
                 HStack(spacing: 0) {
-                    sidebar.frame(width: 216)
+                    sidebar.frame(width: 202)
                     VStack(spacing: 0) {
                         HStack {
                             Text(model.page.uppercased()).font(.system(size: 10, weight: .semibold)).tracking(1.9).foregroundStyle(Ink.muted)
@@ -42,8 +42,8 @@ struct MainView: View {
             }
     }
     var sidebar: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            HStack(spacing: 12) { VelinMark().frame(width: 32, height: 32); VStack(alignment: .leading, spacing: 3) { Text("VELIN").font(.system(size: 18, weight: .semibold)).tracking(3); Text("A quieter kind of clarity.").font(.system(size: 10)).foregroundStyle(Ink.muted) } }.padding(.top, 66).padding(.bottom, 28).padding(.horizontal, 22)
+        GeometryReader { geometry in ScrollView { VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 12) { VelinMark().frame(width: 32, height: 32); VStack(alignment: .leading, spacing: 3) { Text("VELIN").font(.system(size: 18, weight: .semibold)).tracking(3); Text("A quieter kind of clarity.").font(.system(size: 10)).foregroundStyle(Ink.muted) } }.padding(.top, 48).padding(.bottom, 22).padding(.horizontal, 18)
             Text("WORKSPACE").font(.system(size: 9, weight: .semibold)).tracking(1.8).foregroundStyle(Ink.muted.opacity(0.6)).padding(.horizontal, 24).padding(.bottom, 10)
             nav("Overview", "square.grid.2x2")
             nav("Session", "waveform")
@@ -57,10 +57,10 @@ struct MainView: View {
             nav("Tutorial", "play.rectangle")
             nav("About", "info.circle")
             HStack(spacing: 9) { Circle().fill(model.activeProfile == nil ? Ink.muted : Ink.mint).frame(width: 6, height: 6); VStack(alignment: .leading, spacing: 4) { Text(model.activeProfile?.provider.rawValue ?? "No AI connected").font(.system(size: 11, weight: .medium)); Text(model.activeProfile?.model ?? "Add your first connection").font(.system(size: 10)).foregroundStyle(Ink.muted).lineLimit(1) } }.padding(14).frame(maxWidth: .infinity, alignment: .leading).background(.white.opacity(0.025), in: RoundedRectangle(cornerRadius: 11)).padding(14)
-        }.background(Ink.sidebar)
+        }.frame(minHeight: geometry.size.height, alignment: .top) }.scrollIndicators(.hidden) }.background(Ink.sidebar)
     }
     func nav(_ name: String, _ icon: String) -> some View {
-        Button { model.page = name } label: { HStack(spacing: 11) { Image(systemName: icon).font(.system(size: 14)).frame(width: 18); Text(name).font(.system(size: 12, weight: model.page == name ? .semibold : .regular)); Spacer(); if model.page == name { Circle().fill(Ink.mint).frame(width: 4, height: 4) } }.foregroundStyle(model.page == name ? Ink.mint : Ink.muted).padding(.horizontal, 13).frame(height: 38).background(model.page == name ? Ink.mint.opacity(0.07) : .clear, in: RoundedRectangle(cornerRadius: 9)).contentShape(Rectangle()) }.buttonStyle(NavigationPress()).padding(.horizontal, 12).padding(.vertical, 2)
+        Button { model.page = name } label: { HStack(spacing: 11) { Image(systemName: icon).font(.system(size: 14)).frame(width: 18); Text(name).font(.system(size: 12, weight: model.page == name ? .semibold : .regular)).lineLimit(1).minimumScaleFactor(0.85); Spacer(); if model.page == name { Circle().fill(Ink.mint).frame(width: 4, height: 4) } }.foregroundStyle(model.page == name ? Ink.mint : Ink.muted).padding(.horizontal, 13).frame(height: 38).background(model.page == name ? Ink.mint.opacity(0.07) : .clear, in: RoundedRectangle(cornerRadius: 9)).contentShape(Rectangle()) }.buttonStyle(NavigationPress()).padding(.horizontal, 12).padding(.vertical, 2)
     }
     @ViewBuilder var content: some View {
         switch model.page {
@@ -80,23 +80,23 @@ struct MainView: View {
 struct OverviewView: View {
     @ObservedObject var model: AppModel
     var body: some View {
-        ScrollView {
+        GeometryReader { geometry in ScrollView {
             VStack(alignment: .leading, spacing: 26) {
                 ZStack(alignment: .leading) {
                     RoundedRectangle(cornerRadius: 22).fill(LinearGradient(colors: [Color(hex: 0x1C292B), Color(hex: 0x191E2B), Ink.surface], startPoint: .topLeading, endPoint: .bottomTrailing))
                     HStack {
                         VStack(alignment: .leading, spacing: 17) {
                             Pill(text: "PERSONAL AI, ON YOUR TERMS")
-                            Text("A little clarity.\nRight when you need it.").font(.system(size: 39, weight: .regular, design: .serif)).tracking(-1.4).lineSpacing(0).fixedSize(horizontal: false, vertical: true)
+                            Text("A little clarity.\nRight when you need it.").font(.system(size: geometry.size.width < 800 ? 32 : 39, weight: .regular, design: .serif)).tracking(-1.4).lineSpacing(0).fixedSize(horizontal: false, vertical: true)
                             Text("Stay with the conversation. Let VELIN hold the context.").font(.system(size: 13)).foregroundStyle(Ink.muted).fixedSize(horizontal: false, vertical: true)
                             HStack(spacing: 12) { Button { model.page = "Session"; model.showOverlay() } label: { Label("Open your assistant", systemImage: "arrow.up.right") }.buttonStyle(Press(primary: true)); Text("⌃ ⌥ Space").font(.system(size: 11, design: .monospaced)).foregroundStyle(Ink.muted) }.padding(.top, 8)
                         }.padding(30)
                         Spacer(minLength: 0)
-                        SignalArtwork().frame(width: 200, height: 235).padding(.trailing, 26).accessibilityHidden(true)
+                        if geometry.size.width >= 800 { SignalArtwork().frame(width: 200, height: 235).padding(.trailing, 26).accessibilityHidden(true) }
                     }
                 }.overlay(RoundedRectangle(cornerRadius: 22).strokeBorder(.white.opacity(0.08)))
                 HStack { Text("Make room for the moment").font(.system(size: 17, weight: .medium)); Spacer(); Text("THREE WAYS TO BEGIN").font(.system(size: 9, weight: .medium)).tracking(1.5).foregroundStyle(Ink.muted) }
-                HStack(spacing: 14) {
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 210), spacing: 14)], spacing: 14) {
                     action("Listen & stay present", "Live transcript from your mic and computer audio.", "waveform", "Start listening", Ink.mint) { model.page = "Session"; model.startListening() }
                     action("See the bigger picture", "Attach a screenshot and ask about what's on screen.", "viewfinder", "Capture screen", Ink.lilac) { model.capture() }
                     action("Bring your own AI", "Your providers. Your keys. Up to five connections.", "circle.hexagongrid", "AI connections", Color(hex: 0xE6C7A1)) { model.page = "AI Connections" }
@@ -106,11 +106,11 @@ struct OverviewView: View {
                     Card { HStack(spacing: 17) { Image(systemName: "text.bubble").font(.system(size: 23, weight: .light)).foregroundStyle(Ink.muted); VStack(alignment: .leading, spacing: 5) { Text("Your next conversation starts here.").font(.system(size: 13, weight: .medium)); Text("Sessions and notes will appear here, saved on this Mac.").font(.system(size: 12)).foregroundStyle(Ink.muted) }; Spacer(); Button("Try the tutorial") { model.startPractice() }.buttonStyle(Press()) } }
                 } else { ForEach(model.sessions.prefix(3)) { value in SessionRow(value: value) { model.openSession(value) } } }
                 HStack { Image(systemName: "lock.shield"); Text("No VELIN account. No VELIN subscription. AI provider usage is billed separately.") }.font(.system(size: 11)).foregroundStyle(Ink.muted).padding(.top, 4)
-            }.padding(32)
-        }
+            }.padding(24)
+        } }
     }
     func action(_ title: String, _ detail: String, _ icon: String, _ button: String, _ color: Color, run: @escaping () -> Void) -> some View {
-        Card(padding: 20) { VStack(alignment: .leading, spacing: 13) { Image(systemName: icon).font(.system(size: 21, weight: .light)).foregroundStyle(color).frame(height: 30); Text(title).font(.system(size: 14, weight: .medium)); Text(detail).font(.system(size: 12)).foregroundStyle(Ink.muted).frame(height: 38, alignment: .top).fixedSize(horizontal: false, vertical: true); Button(action: run) { HStack { Text(button); Spacer(); Image(systemName: "arrow.up.right") }.font(.system(size: 11, weight: .semibold)).foregroundStyle(color) }.buttonStyle(.plain).padding(.top, 8) } }
+        Card(padding: 20) { VStack(alignment: .leading, spacing: 13) { Image(systemName: icon).font(.system(size: 21, weight: .light)).foregroundStyle(color).frame(height: 30); Text(title).font(.system(size: 14, weight: .medium)); Text(detail).font(.system(size: 12)).foregroundStyle(Ink.muted).frame(minHeight: 38, alignment: .top).fixedSize(horizontal: false, vertical: true); Button(action: run) { HStack { Text(button); Spacer(); Image(systemName: "arrow.up.right") }.font(.system(size: 11, weight: .semibold)).foregroundStyle(color) }.buttonStyle(.plain).padding(.top, 8) } }
     }
 }
 struct SignalArtwork: View {

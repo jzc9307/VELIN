@@ -5,28 +5,55 @@ struct ConnectionsView: View {
     @ObservedObject var model: AppModel
     @ViewState var selected: UUID?
     var body: some View {
-        VStack(alignment: .leading, spacing: 24) {
-            HStack(alignment: .top) { SectionHeading(title: "Your intelligence, connected.", subtitle: "Choose your provider, paste your key, and make it yours. Five slots. One active connection."); Pill(text: "\(model.config.profiles.count) / 5 SLOTS", color: Ink.lilac) }
-            HStack(alignment: .top, spacing: 20) {
-                VStack(spacing: 9) {
-                    ForEach(model.config.profiles) { profile in
-                        Button { selected = profile.id; model.connectionResult = "" } label: {
-                            HStack(spacing: 11) { ProviderBadge(provider: profile.provider); VStack(alignment: .leading, spacing: 5) { Text(profile.name).font(.system(size: 12, weight: .semibold)).lineLimit(1); Text(profile.provider.rawValue).font(.system(size: 11)).foregroundStyle(Ink.muted) }; Spacer(minLength: 4); if model.config.activeProfileID == profile.id { Circle().fill(Ink.mint).frame(width: 6, height: 6) } }.padding(13).background(selected == profile.id ? Ink.mint.opacity(0.06) : Ink.surface, in: RoundedRectangle(cornerRadius: 12)).overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(selected == profile.id ? Ink.mint.opacity(0.3) : Ink.line))
-                        }.buttonStyle(.plain)
+        GeometryReader { geometry in
+            VStack(alignment: .leading, spacing: 18) {
+                HStack(alignment: .top) {
+                    SectionHeading(title: "Your intelligence, connected.", subtitle: "Choose your provider, paste your key, and make it yours. Five slots. One active connection.")
+                    Pill(text: "\(model.config.profiles.count) / 5 SLOTS", color: Ink.lilac)
+                }
+                if geometry.size.width < 800 {
+                    HStack(spacing: 12) {
+                        Menu {
+                            ForEach(model.config.profiles) { profile in
+                                Button("\(profile.name) · \(profile.provider.rawValue)") { selected = profile.id; model.connectionResult = "" }
+                            }
+                        } label: {
+                            Label(model.config.profiles.first(where: { $0.id == selected })?.name ?? "Choose connection", systemImage: "circle.hexagongrid")
+                        }.menuStyle(.borderlessButton).frame(maxWidth: .infinity, alignment: .leading)
+                        Button { model.addProfile(); selected = model.config.profiles.last?.id } label: {
+                            Label("Add connection", systemImage: "plus")
+                        }.buttonStyle(Press()).disabled(model.config.profiles.count >= 5)
                     }
-                    ForEach(0..<max(0, 5-model.config.profiles.count), id: \.self) { index in
-                        Button { model.addProfile(); selected = model.config.profiles.last?.id } label: { HStack { Image(systemName: "plus").font(.system(size: 13)); Text("Add connection").font(.system(size: 12)); Spacer(); Text("0\(model.config.profiles.count+index+1)").font(.system(size: 10, design: .monospaced)) }.foregroundStyle(Ink.muted).padding(17).background(.white.opacity(0.015), in: RoundedRectangle(cornerRadius: 12)).overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(Ink.line, style: StrokeStyle(lineWidth: 1, dash: [4, 4]))) }.buttonStyle(.plain)
+                    selectedConnection
+                } else {
+                    HStack(alignment: .top, spacing: 20) {
+                        profileList.frame(width: 236)
+                        selectedConnection
                     }
-                    Spacer()
-                    Label("Keys stay in macOS Keychain", systemImage: "lock.shield").font(.system(size: 10)).foregroundStyle(Ink.muted).padding(.top, 12)
-                }.frame(width: 236)
-                if let id = selected, let profile = model.config.profiles.first(where: { $0.id == id }) { ConnectionEditor(model: model, original: profile).id(id) }
-                else { Card { VStack(alignment: .leading, spacing: 20) { VelinMark().frame(width: 44, height: 44); Text("A familiar AI.\nA more personal workspace.").font(.system(size: 27, weight: .regular, design: .serif)); Text("Connect OpenAI, Claude, Gemini, OpenRouter, Groq, or a local model. You can use several keys from the same provider, too.").font(.system(size: 13)).foregroundStyle(Ink.muted).lineSpacing(5); Text("No key is included. Your provider bills its own usage. ChatGPT and Claude subscriptions do not automatically include API credits.").font(.system(size: 11)).foregroundStyle(Ink.muted); Button("Add your first connection") { model.addProfile(); selected = model.config.profiles.last?.id }.buttonStyle(Press(primary: true)).disabled(model.config.profiles.count >= 5) }.frame(maxHeight: .infinity, alignment: .top) } }
-            }.frame(maxHeight: .infinity)
-        }.padding(32).onAppear { selected = model.config.activeProfileID ?? model.config.profiles.first?.id }
+                }
+            }.padding(24)
+        }.onAppear { selected = model.config.activeProfileID ?? model.config.profiles.first?.id }
             .onChange(of: model.config.profiles) { _, profiles in
                 if !profiles.contains(where: { $0.id == selected }) { selected = model.config.activeProfileID ?? profiles.first?.id }
             }
+    }
+    var profileList: some View {
+        VStack(spacing: 9) {
+            ForEach(model.config.profiles) { profile in
+                Button { selected = profile.id; model.connectionResult = "" } label: {
+                    HStack(spacing: 11) { ProviderBadge(provider: profile.provider); VStack(alignment: .leading, spacing: 5) { Text(profile.name).font(.system(size: 12, weight: .semibold)).lineLimit(1); Text(profile.provider.rawValue).font(.system(size: 11)).foregroundStyle(Ink.muted) }; Spacer(minLength: 4); if model.config.activeProfileID == profile.id { Circle().fill(Ink.mint).frame(width: 6, height: 6) } }.padding(13).background(selected == profile.id ? Ink.mint.opacity(0.06) : Ink.surface, in: RoundedRectangle(cornerRadius: 12)).overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(selected == profile.id ? Ink.mint.opacity(0.3) : Ink.line))
+                }.buttonStyle(.plain)
+            }
+            ForEach(0..<max(0, 5-model.config.profiles.count), id: \.self) { index in
+                Button { model.addProfile(); selected = model.config.profiles.last?.id } label: { HStack { Image(systemName: "plus").font(.system(size: 13)); Text("Add connection").font(.system(size: 12)); Spacer(); Text("0\(model.config.profiles.count+index+1)").font(.system(size: 10, design: .monospaced)) }.foregroundStyle(Ink.muted).padding(17).background(.white.opacity(0.015), in: RoundedRectangle(cornerRadius: 12)).overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(Ink.line, style: StrokeStyle(lineWidth: 1, dash: [4, 4]))) }.buttonStyle(.plain)
+            }
+            Spacer()
+            Label("Keys stay in macOS Keychain", systemImage: "lock.shield").font(.system(size: 10)).foregroundStyle(Ink.muted).padding(.top, 12)
+        }
+    }
+    @ViewBuilder var selectedConnection: some View {
+        if let id = selected, let profile = model.config.profiles.first(where: { $0.id == id }) { ConnectionEditor(model: model, original: profile).id(id) }
+        else { ScrollView { Card { VStack(alignment: .leading, spacing: 20) { VelinMark().frame(width: 44, height: 44); Text("A familiar AI.\nA more personal workspace.").font(.system(size: 27, weight: .regular, design: .serif)); Text("Connect OpenAI, Claude, Gemini, OpenRouter, Groq, or a local model. You can use several keys from the same provider, too.").font(.system(size: 13)).foregroundStyle(Ink.muted).lineSpacing(5); Text("No key is included. Your provider bills its own usage. ChatGPT and Claude subscriptions do not automatically include API credits.").font(.system(size: 11)).foregroundStyle(Ink.muted); Button("Add your first connection") { model.addProfile(); selected = model.config.profiles.last?.id }.buttonStyle(Press(primary: true)).disabled(model.config.profiles.count >= 5) }.frame(maxWidth: .infinity, alignment: .leading) } } }
     }
 }
 struct ProviderBadge: View {
