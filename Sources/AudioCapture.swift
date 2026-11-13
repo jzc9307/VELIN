@@ -2,8 +2,21 @@ import AppKit
 import AVFoundation
 import ScreenCaptureKit
 import Speech
+import OSLog
+import CoreAudio
 
-final class SpeechChannel: @unchecked Sendable {
+protocol SpeechInput: AnyObject {
+    var partial: (String, String) -> Void { get set }
+    var final: (String, String) -> Void { get set }
+    var failure: (String) -> Void { get set }
+    func begin() async throws
+    func append(_ buffer: AVAudioPCMBuffer)
+    func append(_ buffer: CMSampleBuffer)
+    func rotate(after: TimeInterval)
+    func stop()
+}
+
+final class SpeechChannel: SpeechInput, @unchecked Sendable {
     private let lock = NSLock()
     private var request: SFSpeechAudioBufferRecognitionRequest?
     private var task: SFSpeechRecognitionTask?
@@ -16,6 +29,14 @@ final class SpeechChannel: @unchecked Sendable {
     var failure: (String) -> Void = { _ in }
     private var text = ""
     private var running = false
+    private var restart: DispatchWorkItem?
+    private var startedAt = Date.distantPast
+    private static let logger = Logger(subsystem: "app.velin.assistant", category: "Speech")
+    static func canResumeAfterSilence(_ error: NSError, elapsed: TimeInterval) -> Bool {
+        // Error numbers are domain-specific. Cancellation and recognition failure
+        // are not silence, and immediately retrying them can exhaust the service.
+        error.domain == "kAFAssistantErrorDomain" && error.code == 1110 && elapsed >= 2
+    }
     init(source: String, locale: String, localOnly: Bool) throws {
         guard let recognizer = SFSpeechRecognizer(locale: Locale(identifier: locale)), recognizer.isAvailable else { throw VelinError.message("Speech recognition is unavailable for \(locale). Choose another language or try again.") }
         guard !localOnly || recognizer.supportsOnDeviceRecognition else { throw VelinError.message("On-device speech is unavailable for \(locale). Install this language in macOS or allow Apple speech processing in Settings → Audio.") }
@@ -23,7 +44,8 @@ final class SpeechChannel: @unchecked Sendable {
     }
     // All begin/stop callbacks execute on main. Audio append is protected by the lock.
     func begin() {
-        running = true; generation = UUID(); let token = generation
+        restart?.cancel(); restart = nil
+        running = true; startedAt = Date(); generation = UUID(); let token = generation
         let req = SFSpeechAudioBufferRecognitionRequest()
         req.shouldReportPartialResults = true; req.requiresOnDeviceRecognition = localOnly
         req.taskHint = .dictation; req.addsPunctuation = true
@@ -35,21 +57,36 @@ final class SpeechChannel: @unchecked Sendable {
                 if let result {
                     self.text = result.bestTranscription.formattedString
                     self.partial(self.source, self.text)
-                    if result.isFinal { self.rotate(); return }
+                    if result.isFinal { self.rotate(after: 0.4); return }
                 }
                 if let error {
                     let ns = error as NSError
-                    // Silence/no-speech can terminate a segment; re-arm while recording.
-                    if [203, 1110, 216, 301].contains(ns.code) { self.rotate() }
-                    else { self.failure("\(self.source) transcription: \(error.localizedDescription)"); self.stop() }
+                    Self.logger.error("Recognition failed for \(self.source, privacy: .public): \(ns.domain, privacy: .public) / \(ns.code, privacy: .public)")
+                    if Self.canResumeAfterSilence(ns, elapsed: Date().timeIntervalSince(self.startedAt)) {
+                        self.rotate(after: 1)
+                    } else {
+                        self.stop()
+                        self.failure("\(self.source) transcription stopped (\(ns.domain) \(ns.code)). Stop and start Listen to retry. If it persists, check the transcription language and macOS speech availability.")
+                    }
                 }
             }
         }
     }
     func append(_ buffer: AVAudioPCMBuffer) { lock.lock(); request?.append(buffer); lock.unlock() }
     func append(_ buffer: CMSampleBuffer) { lock.lock(); request?.appendAudioSampleBuffer(buffer); lock.unlock() }
-    func rotate() { guard running else { return }; stop(); begin() }
+    func rotate(after delay: TimeInterval = 0.4) {
+        guard running, restart == nil else { return }
+        stop(); running = true
+        let token = generation
+        let work = DispatchWorkItem { [weak self] in
+            guard let self, self.running, self.generation == token else { return }
+            self.restart = nil; self.begin()
+        }
+        restart = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: work)
+    }
     func stop() {
+        restart?.cancel(); restart = nil
         running = false; generation = UUID()
         lock.lock(); let old = request; request = nil; lock.unlock()
         old?.endAudio(); task?.cancel(); task = nil
@@ -58,76 +95,282 @@ final class SpeechChannel: @unchecked Sendable {
     }
 }
 
+// The modern analyzer supports continuous local streams without repeatedly
+// cancelling and recreating legacy recognition requests.
+@available(macOS 27, *)
+final class StreamingSpeechChannel: SpeechInput, @unchecked Sendable {
+    let source: String
+    let locale: Locale
+    var partial: (String, String) -> Void = { _, _ in }
+    var final: (String, String) -> Void = { _, _ in }
+    var failure: (String) -> Void = { _ in }
+    private let queue = DispatchQueue(label: "app.velin.assistant.speech-input")
+    private var converter: AnalyzerInputConverter?
+    private var continuation: AsyncStream<AnalyzerInput>.Continuation?
+    private var analyzer: SpeechAnalyzer?
+    private var resultsTask: Task<Void, Never>?
+    private var running = false
+    private var generation = UUID()
+    private var text = ""
+    init(source: String, locale: Locale) { self.source = source; self.locale = locale }
+
+    @MainActor func begin() async throws {
+        let module = SpeechTranscriber(locale: locale, preset: .progressiveTranscription)
+        try await AssetInventory.reserve(locale: locale)
+        if let installation = try await AssetInventory.assetInstallationRequest(supporting: [module]) {
+            try await installation.downloadAndInstall()
+        }
+        let converter = try await AnalyzerInputConverter.converter(compatibleWith: [module])
+        let analyzer = SpeechAnalyzer(modules: [module])
+        let inputs = AsyncStream<AnalyzerInput>.makeStream(bufferingPolicy: .bufferingNewest(256))
+        generation = UUID(); let token = generation
+        self.analyzer = analyzer; running = true
+        queue.sync { self.converter = converter; self.continuation = inputs.continuation }
+        resultsTask = Task { @MainActor [weak self] in
+            do {
+                for try await result in module.results {
+                    guard let self, self.running, self.generation == token else { return }
+                    let words = String(result.text.characters).trimmingCharacters(in: .whitespacesAndNewlines)
+                    guard words.rangeOfCharacter(from: .alphanumerics) != nil else { continue }
+                    if result.isFinal {
+                        self.text = ""; self.final(self.source, words); self.partial(self.source, "")
+                    } else { self.text = words; self.partial(self.source, words) }
+                }
+            } catch {
+                guard let self, self.running, self.generation == token else { return }
+                let code = error as NSError
+                self.stop()
+                self.failure("\(self.source) local transcription stopped (\(code.domain) \(code.code)). Start Listen again to retry.")
+            }
+        }
+        do { try await analyzer.start(inputSequence: inputs.stream) }
+        catch { stop(); throw error }
+    }
+    func append(_ buffer: AVAudioPCMBuffer) {
+        // The audio-engine tap owns its buffer; preserve samples before returning.
+        guard let owned = Self.copy(buffer) else { return }
+        enqueue(owned)
+    }
+    func append(_ sample: CMSampleBuffer) {
+        guard let buffer = Self.pcmBuffer(from: sample) else { return }
+        enqueue(buffer)
+    }
+    static func pcmBuffer(from sample: CMSampleBuffer) -> AVAudioPCMBuffer? {
+        let count = CMSampleBufferGetNumSamples(sample)
+        guard count > 0, count <= 1_000_000,
+              let description = CMSampleBufferGetFormatDescription(sample) else { return nil }
+        let format = AVAudioFormat(cmAudioFormatDescription: description)
+        guard let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: AVAudioFrameCount(count)) else { return nil }
+        buffer.frameLength = buffer.frameCapacity
+        guard CMSampleBufferCopyPCMDataIntoAudioBufferList(sample, at: 0, frameCount: Int32(count), into: buffer.mutableAudioBufferList) == noErr else { return nil }
+        return buffer
+    }
+    private func enqueue(_ buffer: AVAudioPCMBuffer) {
+        queue.async { [weak self] in
+            guard let self, let converter = self.converter, let continuation = self.continuation else { return }
+            do {
+                for input in try converter.convert(buffer, at: nil) {
+                    if case .dropped = continuation.yield(input) {
+                        throw VelinError.message("Local speech could not keep up with the input.")
+                    }
+                }
+            }
+            catch {
+                self.continuation = nil
+                DispatchQueue.main.async { [weak self] in
+                    guard let self, self.running else { return }
+                    self.stop(); self.failure("\(self.source) audio could not be converted for local speech recognition. Check the input device and start Listen again.")
+                }
+            }
+        }
+    }
+    static func copy(_ source: AVAudioPCMBuffer) -> AVAudioPCMBuffer? {
+        guard source.frameLength > 0, let output = AVAudioPCMBuffer(pcmFormat: source.format, frameCapacity: source.frameLength) else { return nil }
+        output.frameLength = source.frameLength
+        let from = UnsafeMutableAudioBufferListPointer(source.mutableAudioBufferList)
+        let to = UnsafeMutableAudioBufferListPointer(output.mutableAudioBufferList)
+        guard from.count == to.count else { return nil }
+        for index in from.indices {
+            guard let input = from[index].mData, let destination = to[index].mData else { return nil }
+            memcpy(destination, input, min(Int(from[index].mDataByteSize), Int(to[index].mDataByteSize)))
+        }
+        return output
+    }
+    func rotate(after: TimeInterval) { /* Continuous analyzer has no legacy one-minute request limit. */ }
+    func stop() {
+        running = false; generation = UUID()
+        queue.sync { continuation?.finish(); continuation = nil; converter = nil }
+        resultsTask?.cancel(); resultsTask = nil
+        if !text.isEmpty { final(source, text); text = "" }
+        partial(source, "")
+        let old = analyzer; analyzer = nil
+        if let old { Task { await old.cancelAndFinishNow() } }
+    }
+}
+
 final class AudioCapture: NSObject, SCStreamOutput, SCStreamDelegate, @unchecked Sendable {
     private var engine: AVAudioEngine?
     private var stream: SCStream?
-    private var microphone: SpeechChannel?
-    private var computer: SpeechChannel?
+    private var microphone: (any SpeechInput)?
+    private var computer: (any SpeechInput)?
     private var rotateTimer: Timer?
     private var microphoneTapInstalled = false
     var partial: (String, String) -> Void = { _, _ in }
     var final: (String, String) -> Void = { _, _ in }
     var failure: (String) -> Void = { _ in }
     var level: (Double) -> Void = { _ in }
+    var computerLevel: (Double) -> Void = { _ in }
+    var microphoneName: (String) -> Void = { _ in }
+    var sourceState: (String, String) -> Void = { _, _ in }
+    var warning: (String) -> Void = { _ in }
+    private var receivedInputs = Set<String>()
+    private var captureGeneration = UUID()
+    private var inputWarnings: [String: String] = [:]
 
     @MainActor func start(config: Configuration) async throws {
         guard config.microphone || config.systemAudio else { throw VelinError.message("Enable microphone or computer audio in Audio settings.") }
         guard SFSpeechRecognizer.authorizationStatus() == .authorized else { throw VelinError.message("Allow Speech Recognition in Setup before listening.") }
-        do {
-            if config.microphone {
-                guard AVCaptureDevice.authorizationStatus(for: .audio) == .authorized else { throw VelinError.message("Allow Microphone in Setup before listening.") }
-                let channel = try channel("You", config); microphone = channel; channel.begin()
-                let engine = AVAudioEngine(); self.engine = engine
-                let input = engine.inputNode, format = input.outputFormat(forBus: 0)
-                guard format.sampleRate > 0, format.channelCount > 0 else { throw VelinError.message("No microphone is available. Connect one or disable microphone capture.") }
-                input.installTap(onBus: 0, bufferSize: 2048, format: format) { [weak self, weak channel] buffer, _ in
-                    channel?.append(buffer)
-                    if let samples = buffer.floatChannelData?[0] {
-                        let count = Int(buffer.frameLength)
-                        if count > 0 {
-                            var sum: Float = 0
-                            for i in 0..<count { sum += samples[i] * samples[i] }
-                            let value = min(1, Double(sqrt(sum / Float(count))) * 8)
-                            DispatchQueue.main.async { self?.level(value) }
-                        }
-                    }
-                }
-                microphoneTapInstalled = true; engine.prepare(); try engine.start()
+        captureGeneration = UUID(); receivedInputs = []; inputWarnings = [:]; warning(""); level(0); computerLevel(0)
+        var issues: [String] = []
+        sourceState("You", config.microphone ? "Starting…" : "Off")
+        sourceState("Computer", config.systemAudio ? "Starting…" : "Off")
+        if config.microphone {
+            do { try await startMicrophone(config); sourceState("You", "Listening") }
+            catch { stopMicrophone(); sourceState("You", "Unavailable"); issues.append("Microphone: " + error.localizedDescription) }
+        }
+        if config.systemAudio {
+            do { try await startComputer(config); sourceState("Computer", "Listening") }
+            catch {
+                let failedStream = stream; stream = nil
+                computer?.stop(); computer = nil
+                if let failedStream { try? await failedStream.stopCapture() }
+                sourceState("Computer", "Unavailable"); issues.append("Computer audio: " + error.localizedDescription)
             }
-            if config.systemAudio {
-                guard CGPreflightScreenCaptureAccess() else { throw VelinError.message("Allow Screen & System Audio Recording in Setup for computer audio.") }
-                let channel = try channel("Computer", config); computer = channel; channel.begin()
-                let content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
-                guard let display = content.displays.first else { throw VelinError.message("No display is available for system-audio capture.") }
-                let filter = SCContentFilter(display: display, excludingApplications: content.applications.filter { $0.processID == ProcessInfo.processInfo.processIdentifier }, exceptingWindows: [])
-                let cfg = SCStreamConfiguration(); cfg.width = 2; cfg.height = 2
-                cfg.minimumFrameInterval = CMTime(value: 1, timescale: 1)
-                cfg.capturesAudio = true; cfg.excludesCurrentProcessAudio = true; cfg.sampleRate = 16000; cfg.channelCount = 1
-                let stream = SCStream(filter: filter, configuration: cfg, delegate: self); self.stream = stream
-                try stream.addStreamOutput(self, type: .audio, sampleHandlerQueue: .main)
-                try await stream.startCapture()
-            }
-            rotateTimer = Timer.scheduledTimer(withTimeInterval: 45, repeats: true) { [weak self] _ in self?.microphone?.rotate(); self?.computer?.rotate() }
-        } catch { await stop(); throw error }
+        }
+        guard microphone != nil || computer != nil else { throw VelinError.message(issues.joined(separator: " ")) }
+        for (index, issue) in issues.enumerated() { inputWarnings["startup\(index)"] = issue }
+        warning(inputWarnings.sorted { $0.key < $1.key }.map(\.value).joined(separator: " "))
+        rotateTimer = Timer.scheduledTimer(withTimeInterval: 45, repeats: true) { [weak self] _ in self?.microphone?.rotate(after: 0.4); self?.computer?.rotate(after: 0.4) }
     }
-    private func channel(_ source: String, _ config: Configuration) throws -> SpeechChannel {
-        let channel = try SpeechChannel(source: source, locale: config.language, localOnly: config.localSpeechOnly)
-        channel.partial = partial; channel.final = final; channel.failure = failure
+    @MainActor private func startMicrophone(_ config: Configuration) async throws {
+        guard AVCaptureDevice.authorizationStatus(for: .audio) == .authorized else { throw VelinError.message("Allow Microphone in Audio & Permissions.") }
+        let channel = try await channel("You", config); microphone = channel; try await channel.begin()
+        let engine = AVAudioEngine(); self.engine = engine
+        let input = engine.inputNode, format = input.outputFormat(forBus: 0)
+        microphoneName(Self.inputDeviceName(input))
+        guard format.sampleRate > 0, format.channelCount > 0 else { throw VelinError.message("No microphone is available. Check the macOS default input device.") }
+        let token = captureGeneration
+        input.installTap(onBus: 0, bufferSize: 2048, format: format) { [weak self, weak channel] buffer, _ in
+            channel?.append(buffer)
+            var value: Double = 0
+            if let samples = buffer.floatChannelData?[0], buffer.frameLength > 0 {
+                value = Self.normalizedLevel(UnsafeBufferPointer(start: samples, count: Int(buffer.frameLength)))
+            }
+            DispatchQueue.main.async { guard let self, self.captureGeneration == token, self.microphone != nil else { return }; self.markReceived("You"); self.level(value) }
+        }
+        microphoneTapInstalled = true; engine.prepare(); try engine.start()
+    }
+    @MainActor private func startComputer(_ config: Configuration) async throws {
+        guard CGPreflightScreenCaptureAccess() else { throw VelinError.message("Allow Screen & System Audio Recording in Audio & Permissions, then reopen VELIN if macOS asks.") }
+        let channel = try await channel("Computer", config); computer = channel; try await channel.begin()
+        let content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
+        guard let display = content.displays.first else { throw VelinError.message("No display is available for system audio.") }
+        let filter = SCContentFilter(display: display, excludingApplications: content.applications.filter { $0.processID == ProcessInfo.processInfo.processIdentifier }, exceptingWindows: [])
+        let cfg = SCStreamConfiguration(); cfg.width = 2; cfg.height = 2
+        cfg.minimumFrameInterval = CMTime(value: 1, timescale: 1)
+        cfg.capturesAudio = true; cfg.excludesCurrentProcessAudio = true; cfg.sampleRate = 16000; cfg.channelCount = 1
+        let stream = SCStream(filter: filter, configuration: cfg, delegate: self); self.stream = stream
+        try stream.addStreamOutput(self, type: .audio, sampleHandlerQueue: .main)
+        try await stream.startCapture()
+    }
+    private static func inputDeviceName(_ input: AVAudioInputNode) -> String {
+        guard let unit = input.audioUnit else { return "macOS default input" }
+        var device = AudioDeviceID(0), size = UInt32(MemoryLayout<AudioDeviceID>.size)
+        guard AudioUnitGetProperty(unit, kAudioOutputUnitProperty_CurrentDevice, kAudioUnitScope_Global, 0, &device, &size) == noErr else { return "macOS default input" }
+        var address = AudioObjectPropertyAddress(mSelector: kAudioObjectPropertyName, mScope: kAudioObjectPropertyScopeGlobal, mElement: kAudioObjectPropertyElementMain)
+        var name: Unmanaged<CFString>?; size = UInt32(MemoryLayout<Unmanaged<CFString>?>.size)
+        guard AudioObjectGetPropertyData(device, &address, 0, nil, &size, &name) == noErr, let name else { return "macOS default input" }
+        return name.takeRetainedValue() as String
+    }
+    private func stopMicrophone() {
+        engine?.stop()
+        if microphoneTapInstalled { engine?.inputNode.removeTap(onBus: 0); microphoneTapInstalled = false }
+        engine = nil; microphone?.stop(); microphone = nil; level(0)
+    }
+    private func markReceived(_ source: String) {
+        if receivedInputs.insert(source).inserted { sourceState(source, "Audio received") }
+    }
+    static func normalizedLevel<C: Collection>(_ samples: C) -> Double where C.Element == Float {
+        guard !samples.isEmpty else { return 0 }
+        var sum: Double = 0
+        for sample in samples { if sample.isFinite { sum += Double(sample) * Double(sample) } }
+        return min(1, sqrt(sum / Double(samples.count)) * 8)
+    }
+    private func computerSignalLevel(_ buffer: CMSampleBuffer) -> Double {
+        guard let description = CMSampleBufferGetFormatDescription(buffer),
+              let format = CMAudioFormatDescriptionGetStreamBasicDescription(description)?.pointee,
+              format.mFormatFlags & kAudioFormatFlagIsFloat != 0, format.mBitsPerChannel == 32,
+              let block = CMSampleBufferGetDataBuffer(buffer) else { return 0 }
+        let length = CMBlockBufferGetDataLength(block)
+        guard length > 0, length <= 1_000_000, length % MemoryLayout<Float>.size == 0 else { return 0 }
+        var data = Data(count: length)
+        let status = data.withUnsafeMutableBytes { bytes in CMBlockBufferCopyDataBytes(block, atOffset: 0, dataLength: length, destination: bytes.baseAddress!) }
+        guard status == kCMBlockBufferNoErr else { return 0 }
+        // Copy bytes through loadUnaligned: Data doesn't promise Float alignment.
+        return data.withUnsafeBytes { bytes in
+            var values: [Float] = []; values.reserveCapacity(length / 4)
+            for offset in stride(from: 0, to: length, by: 4) { values.append(bytes.loadUnaligned(fromByteOffset: offset, as: Float.self)) }
+            return Self.normalizedLevel(values)
+        }
+    }
+    @MainActor private func channel(_ source: String, _ config: Configuration) async throws -> any SpeechInput {
+        let channel: any SpeechInput
+        if #available(macOS 27, *), SpeechTranscriber.isAvailable,
+           let locale = await SpeechTranscriber.supportedLocale(equivalentTo: Locale(identifier: config.language)) {
+            sourceState(source, "Preparing local speech…")
+            channel = StreamingSpeechChannel(source: source, locale: locale)
+        } else {
+            channel = try SpeechChannel(source: source, locale: config.language, localOnly: config.localSpeechOnly)
+        }
+        channel.partial = partial; channel.final = final
+        channel.failure = { [weak self] message in
+            guard let self else { return }
+            self.sourceState(source, "Recognition error")
+            self.inputWarnings[source] = message
+            self.warning(self.inputWarnings.sorted { $0.key < $1.key }.map(\.value).joined(separator: " "))
+            if source == "You" { self.stopMicrophone() }
+            else {
+                self.computer = nil
+                let failedStream = self.stream; self.stream = nil
+                if let failedStream { Task { try? await failedStream.stopCapture() } }
+            }
+            if self.microphone == nil && self.computer == nil { self.failure(message) }
+        }
         return channel
     }
     @MainActor func stop() async {
-        rotateTimer?.invalidate(); rotateTimer = nil
-        engine?.stop()
-        if microphoneTapInstalled { engine?.inputNode.removeTap(onBus: 0); microphoneTapInstalled = false }
-        engine = nil
+        captureGeneration = UUID(); rotateTimer?.invalidate(); rotateTimer = nil
+        stopMicrophone()
+        computer?.stop(); computer = nil
         let oldStream = stream; stream = nil
         if let oldStream { try? await oldStream.stopCapture() }
-        microphone?.stop(); computer?.stop(); microphone = nil; computer = nil; level(0)
+        computerLevel(0); receivedInputs = []
+        sourceState("You", "Stopped"); sourceState("Computer", "Stopped")
     }
     func stream(_ stream: SCStream, didOutputSampleBuffer sampleBuffer: CMSampleBuffer, of type: SCStreamOutputType) {
-        if type == .audio, sampleBuffer.isValid { computer?.append(sampleBuffer) }
+        guard self.stream === stream, type == .audio, sampleBuffer.isValid else { return }
+        computer?.append(sampleBuffer)
+        markReceived("Computer"); computerLevel(computerSignalLevel(sampleBuffer))
     }
-    func stream(_ stream: SCStream, didStopWithError error: Error) { DispatchQueue.main.async { [weak self] in self?.failure("Computer audio stopped: \(error.localizedDescription)") } }
+    func stream(_ stream: SCStream, didStopWithError error: Error) {
+        DispatchQueue.main.async { [weak self] in
+            guard let self, self.stream === stream else { return }
+            self.stream = nil; self.computer?.stop(); self.computer = nil
+            self.computerLevel(0); self.sourceState("Computer", "Capture stopped")
+            let message = "Computer audio stopped: " + error.localizedDescription
+            if self.microphone == nil { self.failure(message) } else { self.warning(message) }
+        }
+    }
 }
 
 enum ScreenCapture {

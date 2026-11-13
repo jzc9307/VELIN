@@ -126,7 +126,7 @@ struct SignalArtwork: View {
 
 struct SessionView: View {
     @ObservedObject var model: AppModel
-    @ViewState var tab = "Conversation"
+    var tab: String { get { model.sessionTab } nonmutating set { model.sessionTab = newValue } }
     var body: some View {
         VStack(spacing: 20) {
             HStack(alignment: .top) {
@@ -162,7 +162,8 @@ struct ChatView: View {
     var compact: Bool
     var body: some View {
         VStack(spacing: 0) {
-            if model.session.messages.isEmpty {
+            HeardQuestionView(model: model)
+            if model.session.messages.isEmpty && model.pendingHeardQuestion.isEmpty {
                 VStack(spacing: 15) {
                     VelinMark().frame(width: compact ? 36 : 52, height: compact ? 36 : 52).padding(.bottom, 5)
                     Text("What would help right now?").font(.system(size: compact ? 18 : 23, weight: .regular, design: .serif))
@@ -176,7 +177,7 @@ struct ChatView: View {
                 ScrollViewReader { proxy in
                     ScrollView { LazyVStack(alignment: .leading, spacing: 18) { ForEach(model.session.messages) { message in
                         VStack(alignment: .leading, spacing: 8) {
-                            HStack { Text(message.role == "user" ? "YOU" : "VELIN").font(.system(size: 9, weight: .bold)).tracking(1.5).foregroundStyle(message.role == "user" ? Ink.muted : Ink.mint); if message.attachment { Image(systemName: "photo").font(.system(size: 10)).foregroundStyle(Ink.lilac) }; Spacer(); if !message.text.isEmpty { Button { NSPasteboard.general.clearContents(); NSPasteboard.general.setString(message.text, forType: .string); model.notice = "Copied response." } label: { Image(systemName: "doc.on.doc").font(.system(size: 10)).foregroundStyle(Ink.muted) }.buttonStyle(.plain).help("Copy text") } }
+                            HStack { Text(message.role == "user" ? (message.inputSource == "Computer" ? "OTHER SIDE" : "YOU") : "VELIN").font(.system(size: 9, weight: .bold)).tracking(1.5).foregroundStyle(message.role == "user" ? Ink.muted : Ink.mint); if message.attachment { Image(systemName: "photo").font(.system(size: 10)).foregroundStyle(Ink.lilac) }; Spacer(); if !message.text.isEmpty { Button { NSPasteboard.general.clearContents(); NSPasteboard.general.setString(message.text, forType: .string); model.notice = "Copied response." } label: { Image(systemName: "doc.on.doc").font(.system(size: 10)).foregroundStyle(Ink.muted) }.buttonStyle(.plain).help("Copy text") } }
                             if message.text.isEmpty && model.generating { HStack(spacing: 8) { ProgressView().controlSize(.small); Text("Thinking with \(model.activeProfile?.provider.rawValue ?? "AI")…").font(.system(size: 12)).foregroundStyle(Ink.muted) } }
                             else { Text(.init(message.text)).font(.system(size: 13)).lineSpacing(5).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading) }
                         }.padding(message.role == "user" ? 14 : 2).background(message.role == "user" ? .white.opacity(0.035) : .clear, in: RoundedRectangle(cornerRadius: 12)).id(message.id)
@@ -191,7 +192,7 @@ struct ChatView: View {
             }
             VStack(spacing: 10) {
                 HStack(alignment: .bottom, spacing: 10) {
-                    TextField("Ask anything…", text: $model.prompt, axis: .vertical).lineLimit(1...4).textFieldStyle(.plain).font(.system(size: 13)).onSubmit { model.ask() }.padding(.vertical, 9)
+                    TextField(model.recording ? "Press Enter to answer the other side…" : "Ask anything…", text: $model.prompt, axis: .vertical).lineLimit(1...4).textFieldStyle(.plain).font(.system(size: 13)).onSubmit { model.ask() }.padding(.vertical, 9)
                     Button { if model.generating { model.cancelAnswer() } else { model.ask() } } label: { Image(systemName: model.generating ? "stop.fill" : "arrow.up").font(.system(size: 13, weight: .bold)).frame(width: 32, height: 32).foregroundStyle(Ink.background).background(Ink.mint, in: RoundedRectangle(cornerRadius: 9)) }.buttonStyle(.plain).help(model.generating ? "Stop response" : "Send question")
                 }.padding(.horizontal, 12).padding(.vertical, 6).background(Ink.background, in: RoundedRectangle(cornerRadius: 12)).overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(Ink.line))
                 HStack(spacing: 13) {

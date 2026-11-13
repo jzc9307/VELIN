@@ -68,7 +68,38 @@ struct ChatMessage: Codable, Identifiable, Equatable {
     var time = Date()
     var attachment: Bool = false
     var quickReplies: QuickReplies? = nil
+    var inputSource: String? = nil
 }
+/// Unanswered computer speech is a draft until the user requests an answer.
+/// Speech engines revise partial text and later finalize the same segment.
+struct HeardQuestionDraft {
+    private var completed: [String] = []
+    private var partial = ""
+    private var consumedWords = 0
+    var text: String {
+        String((completed + [remainder(partial)]).filter { !$0.isEmpty }.joined(separator: " ").suffix(6000))
+    }
+    private func clean(_ text: String) -> String {
+        let value = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        return value.rangeOfCharacter(from: .alphanumerics) == nil ? "" : value
+    }
+    private func remainder(_ text: String) -> String {
+        clean(text.split(whereSeparator: \.isWhitespace).dropFirst(consumedWords).joined(separator: " "))
+    }
+    mutating func update(_ words: String) { partial = clean(words) }
+    mutating func finish(_ words: String) {
+        let pending = remainder(words)
+        if !pending.isEmpty { completed.append(pending) }
+        completed = [String(completed.joined(separator: " ").suffix(6000))].filter { !$0.isEmpty }
+        partial = ""; consumedWords = 0
+    }
+    mutating func consume() {
+        completed = []
+        consumedWords = partial.split(whereSeparator: \.isWhitespace).count
+    }
+    mutating func reset() { self = Self() }
+}
+
 enum ReplyAction: String, CaseIterable, Identifiable {
     case answer = "Answer", say = "Say this", next = "Next step", more = "Explain more"
     var id: String { rawValue }

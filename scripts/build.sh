@@ -1,10 +1,14 @@
 #!/bin/bash
 set -euo pipefail
+MODE="${1:-install}"
+if [ "$MODE" != "install" ] && [ "$MODE" != "--stage-only" ]; then echo 'Usage: build.sh [--stage-only]' >&2; exit 2; fi
 SOURCE="$(cd "$(dirname "$0")/.." && pwd -P)"
 if [ -f "$SOURCE/../.velin-workspace" ]; then PROJECT="$(cd "$SOURCE/.." && pwd -P)"; else PROJECT="$SOURCE/dist"; fi
 CACHE="$PROJECT/work"
 mkdir -p "$CACHE/swift-cache" "$PROJECT/outputs"
 STAGE="$(mktemp -d /private/tmp/velin-build.XXXXXX)"
+mv "$STAGE" "$STAGE.noindex"
+STAGE="$STAGE.noindex"
 trap 'rm -rf "$STAGE"' EXIT
 APP="$STAGE/VELIN.app"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
@@ -16,8 +20,14 @@ ditto "$SOURCE/Resources/Providers" "$APP/Contents/Resources/Providers"
 cp "$SOURCE/LICENSE" "$APP/Contents/Resources/LICENSE.txt"
 cp "$SOURCE/THIRD-PARTY.md" "$APP/Contents/Resources/THIRD-PARTY.md"
 ditto "$SOURCE/docs" "$APP/Contents/Resources/Guides"
-codesign --force --sign - "$APP"
+python3 "$SOURCE/scripts/signing.py" sign "$APP"
 codesign --verify --deep --strict "$APP"
+if [ "$MODE" = "--stage-only" ]; then
+  printf '%s\n' "$STAGE" > "$CACHE/staged-app-path.txt"
+  trap - EXIT
+  echo "Staged signed VELIN at $STAGE/VELIN.app"
+  exit 0
+fi
 # Never replace the executable underneath a running app.
 if pgrep -x VELIN >/dev/null; then echo 'Quit VELIN before replacing its app bundle.' >&2; exit 1; else status=$?; if [ "$status" -ne 1 ]; then echo 'Cannot verify running processes. Build with process-list access before replacing the app.' >&2; exit 1; fi; fi
 # Preserve the outer .app directory so Finder/Spotlight keep one file identity.

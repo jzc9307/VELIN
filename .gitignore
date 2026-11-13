@@ -12,3 +12,9 @@ dist/
 *.xcuserstate
 __pycache__/
 *.pyc
+
+# This Mac only: certificate reference; private signing keys stay in Keychain.
+.local-signing.json
+*.p12
+*.pfx
+*.key

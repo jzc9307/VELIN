@@ -41,7 +41,7 @@ struct OverlayView: View {
         VStack(spacing: 0) {
             VStack(spacing: 0) {
             HStack(alignment: .center, spacing: 12) {
-                TextField("Ask anything about your screen or conversation…", text: $model.prompt, axis: .vertical)
+                TextField(model.recording ? "Press Enter to answer the other side…" : "Ask anything about your screen or conversation…", text: $model.prompt, axis: .vertical)
                     .textFieldStyle(.plain).font(.system(size: 14, weight: .medium)).lineLimit(1...2)
                     .onSubmit { model.ask() }
                     .accessibilityLabel("Ask VELIN")
@@ -74,6 +74,7 @@ struct OverlayView: View {
                 Button(action: close) { Image(systemName: "xmark").font(.system(size: 11)) }.buttonStyle(IconPress()).help("Hide assistant · ⌃⌥Space")
             }.foregroundStyle(Ink.muted).padding(.horizontal, 18).frame(height: 42)
             }.background(Ink.background.opacity(model.config.overlayOpacity))
+            if model.recording || model.startingAudio || !model.pendingHeardQuestion.isEmpty { ListeningStatusView(model: model, compact: true) }
             if let image = model.pendingImage, let nsImage = NSImage(data: image) {
                 Rectangle().fill(Ink.line).frame(height: 1)
                 HStack(spacing: 12) {
@@ -201,6 +202,12 @@ final class Hotkeys {
         model.$overlayExpanded.combineLatest(model.$pendingImage, model.$error).sink { [weak self] _, _, _ in
             DispatchQueue.main.async { self?.resizePanel() }
         }.store(in: &subscriptions)
+        model.$heardQuestion.sink { [weak self] _ in
+            DispatchQueue.main.async { self?.resizePanel() }
+        }.store(in: &subscriptions)
+        model.$recording.combineLatest(model.$startingAudio).sink { [weak self] _, _ in
+            DispatchQueue.main.async { self?.resizePanel() }
+        }.store(in: &subscriptions)
         installMenus(); applyProtection()
         hotkeys.action = { [weak self] id in
             guard let self else { return }
@@ -226,7 +233,7 @@ final class Hotkeys {
         let old = panel.frame
         let screen = panel.screen?.visibleFrame ?? NSScreen.main?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
         let width = min(660, screen.width - 32)
-        let targetHeight = min(CGFloat(120 + (model.overlayExpanded ? 300 : 0) + (model.pendingImage != nil ? 84 : 0) + (model.error != nil ? 56 : 0)), screen.height - 32)
+        let targetHeight = min(CGFloat(120 + ((model.recording || model.startingAudio || !model.pendingHeardQuestion.isEmpty) ? 126 : 0) + (model.overlayExpanded ? 300 : 0) + (model.pendingImage != nil ? 84 : 0) + (model.error != nil ? 56 : 0)), screen.height - 32)
         let x = min(max(old.minX, screen.minX + 16), screen.maxX - width - 16)
         let y = min(max(old.maxY - targetHeight, screen.minY + 16), screen.maxY - targetHeight - 16)
         panel.setFrame(NSRect(x: x, y: y, width: width, height: targetHeight), display: true, animate: false)

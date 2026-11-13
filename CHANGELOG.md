@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+- Put the other side’s recognized speech into Conversation and the compact assistant. Press Enter to answer without typing, with live/final deduplication and the existing global answer shortcut.
+
+- Use continuous on-device speech on macOS 27 for supported languages, keeping microphone and meeting streams separate. Stop retrying failed legacy requests in a tight loop and retain individual input errors.
+- Show the actual microphone device, separate audio meters, and live transcript text so input setup can be diagnosed before a call.
+
+- Keep local app identity stable across rebuilds with a certificate-pinned signing identity, preserving Keychain trust after one authorization.
+- Show live transcription, separate microphone/computer meters and input status directly in the assistant.
+- Keep a working audio input running if the other fails, show the failure, and open the Transcript tab when listening begins.
+- Stage signed updates without touching the running app, avoiding repeated compile/close cycles.
+
 - Stream a concise answer first, with Say this / Next step / Explain more prepared in the same request and revealed by rounded local-action chips.
 - Show the user's question above the overlay answer, keep streaming anchored at the top, and preserve manual scrolling without bottom jumps.
 - Make the answer area more transparent than the input bar and render Markdown block headings, lists and code cleanly.

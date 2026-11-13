@@ -49,7 +49,7 @@ When you ask a question or generate notes, relevant transcript, chat, instructio
 
 **Capture exclusion is best effort, not guaranteed invisibility.** VELIN requests the legacy NSWindow sharing hint only when enabled. Modern sharing/recording apps can still capture it. See [Apple's documentation](https://developer.apple.com/documentation/appkit/nswindow/sharingtype-swift.enum/none). No process hiding or proctoring bypass is implemented. Computer-audio text is labeled by input source, not individual participant.
 
-This is early independent software, not feature-for-feature parity with Cluely. No Cluely code, branding, packaged tools or backend endpoints are bundled. Calendar sync, cloud sync, automatic meeting detection and broad capture-app certification are not included. Live paid-provider behavior requires your key and account access. The app is locally ad-hoc signed; Developer ID signing and notarization are not configured.
+This is early independent software, not feature-for-feature parity with Cluely. No Cluely code, branding, packaged tools or backend endpoints are bundled. Calendar sync, cloud sync, automatic meeting detection and broad capture-app certification are not included. Live paid-provider behavior requires your key and account access. Local builds use a persistent self-signed identity stored on the build Mac. Run `python3 scripts/signing.py setup` once before the first build. Developer ID signing and notarization are not configured.
 
 ## All versions
 

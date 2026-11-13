@@ -179,6 +179,7 @@ struct AudioSettingsView: View {
         ScrollView { VStack(alignment: .leading, spacing: 22) {
             SectionHeading(title: "Only when you press Listen.", subtitle: "Control the sources and permissions VELIN uses. No audio recording files are retained.")
             permissions
+            ListeningStatusView(model: model)
             Card { VStack(alignment: .leading, spacing: 20) {
                 Text("Audio sources").font(.system(size: 16, weight: .medium))
                 Toggle("Microphone · labeled You", isOn: $model.config.microphone)

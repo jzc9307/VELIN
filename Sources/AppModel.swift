@@ -22,6 +22,14 @@ import ScreenCaptureKit
     @Published var error: String?
     @Published var notice = ""
     @Published var partials: [String: String] = [:]
+    @Published var heardQuestion = HeardQuestionDraft()
+    var pendingHeardQuestion: String { heardQuestion.text }
+    @Published var sessionTab = "Conversation"
+    @Published var liveTranscriptPreview = ""
+    @Published var audioInputStates: [String: String] = [:]
+    @Published var audioWarning = ""
+    @Published var microphoneInputName = "macOS default input"
+    @Published var computerLevel: Double = 0
     @Published var level: Double = 0
     @Published var elapsed: Double = 0
     @Published var pendingImage: Data?
@@ -54,16 +62,28 @@ import ScreenCaptureKit
         session.mode = config.mode
         if !config.onboardingCompleted { page = "Setup" }
         refreshPermissions()
-        audio.partial = { [weak self] source, text in self?.partials[source] = text }
-        audio.final = { [weak self] source, text in
-            guard let self else { return }
-            self.session.transcript.append(TranscriptLine(source: source, text: text)); self.persistSession()
-        }
+        audio.partial = { [weak self] source, text in self?.receiveSpeechPartial(source: source, text: text) }
+        audio.final = { [weak self] source, text in self?.receiveSpeechFinal(source: source, text: text) }
         audio.failure = { [weak self] message in
             guard let self else { return }; self.error = message
             if self.recording { Task { await self.stopListening() } }
         }
         audio.level = { [weak self] value in self?.level = value }
+        audio.microphoneName = { [weak self] name in self?.microphoneInputName = name }
+        audio.computerLevel = { [weak self] value in self?.computerLevel = value }
+        audio.sourceState = { [weak self] source, state in self?.audioInputStates[source] = state }
+        audio.warning = { [weak self] message in self?.audioWarning = message }
+    }
+    func receiveSpeechPartial(source: String, text: String) {
+        partials[source] = text
+        if source == "Computer" { heardQuestion.update(text) }
+        if !text.isEmpty { liveTranscriptPreview = source + ": " + text; audioInputStates[source] = "Transcribing" }
+    }
+    func receiveSpeechFinal(source: String, text: String) {
+        guard text.rangeOfCharacter(from: .alphanumerics) != nil else { return }
+        if source == "Computer" { heardQuestion.finish(text) }
+        liveTranscriptPreview = source + ": " + text
+        session.transcript.append(TranscriptLine(source: source, text: text)); persistSession()
     }
     var activeProfile: AIProfile? { config.profiles.first { $0.id == config.activeProfileID } }
     var endpointHost: String { activeProfile.flatMap { URL(string: $0.endpoint)?.host } ?? "No provider selected" }
@@ -149,12 +169,12 @@ import ScreenCaptureKit
     }
     func startListening() {
         guard !recording, !startingAudio else { return }
-        startingAudio = true; refreshPermissions()
+        startingAudio = true; error = nil; liveTranscriptPreview = ""; audioWarning = ""; refreshPermissions()
         Task { [self] in
             defer { startingAudio = false }
             do {
                 try await audio.start(config: config)
-                recording = true; durationBeforeRecording = session.duration; activeStarted = Date()
+                recording = true; sessionTab = "Conversation"; durationBeforeRecording = session.duration; activeStarted = Date()
                 timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
                     Task { @MainActor in guard let self, let start = self.activeStarted else { return }; self.elapsed = self.durationBeforeRecording + Date().timeIntervalSince(start); self.session.duration = self.elapsed }
                 }
@@ -172,7 +192,7 @@ import ScreenCaptureKit
     func toggleListening() { if recording { Task { await stopListening() } } else { startListening() } }
     func newSession() {
         guard !recording && !startingAudio && !generating else { error = "Stop listening and finish the current answer before starting a new session."; return }
-        persistSession(); session = Session(mode: config.mode); overlayExpanded = false; elapsed = 0; partials = [:]; pendingImage = nil; prompt = ""; selectedHistory = nil
+        persistSession(); session = Session(mode: config.mode); overlayExpanded = false; elapsed = 0; partials = [:]; pendingImage = nil; prompt = ""; selectedHistory = nil; liveTranscriptPreview = ""; sessionTab = "Conversation"; heardQuestion.reset()
     }
     func persistSession() {
         guard loadedSafely, hasSession else { return }
@@ -187,7 +207,11 @@ import ScreenCaptureKit
         guard !generating else { return }
         guard let profile = activeProfile else { page = "AI Connections"; openMain(); error = "Add and select an AI connection first."; return }
         let text = (question ?? prompt).trimmingCharacters(in: .whitespacesAndNewlines)
-        let actual = text.isEmpty ? "Using the conversation so far, suggest a useful response or the next question. If there is no conversation, ask what I need help with." : text
+        let answeringHeardQuestion = !notes && text.isEmpty && !pendingHeardQuestion.isEmpty
+        if !notes && text.isEmpty && !answeringHeardQuestion && recording && pendingImage == nil {
+            notice = "Waiting for the other side’s question. Keep Computer audio enabled, then press Enter when words appear."; return
+        }
+        let actual = answeringHeardQuestion ? pendingHeardQuestion : (text.isEmpty ? "Using the conversation so far, suggest a useful response or the next question. If there is no conversation, ask what I need help with." : text)
         if notes && transcriptContext.isEmpty && session.messages.isEmpty { error = "Add a conversation or transcript before generating notes."; return }
         let transcript = transcriptContext
         let presentation = notes ? "" : ReplyPackage.instruction
@@ -197,7 +221,8 @@ import ScreenCaptureKit
             if let extras = message.quickReplies, !extras.markdown.isEmpty { context.text += "\n\n" + extras.markdown }
             return context
         }
-        let user = ChatMessage(role: "user", text: actual, attachment: pendingImage != nil && !notes)
+        var user = ChatMessage(role: "user", text: actual, attachment: pendingImage != nil && !notes)
+        user.inputSource = answeringHeardQuestion ? "Computer" : nil
         let image = notes ? nil : pendingImage
         let request: URLRequest
         do { request = try AIClient.request(profile: profile, key: SecretStore.read(profile.id), system: instruction, messages: contextMessages + [user], image: image) }
@@ -205,6 +230,7 @@ import ScreenCaptureKit
         generating = true; generatingNotes = notes
         if !notes { overlayExpanded = true; showOverlay() }
         if !notes {
+            if answeringHeardQuestion { heardQuestion.consume() }
             session.messages.append(user); session.messages.append(ChatMessage(role: "assistant", text: ""))
             if session.title == "Untitled session" { session.title = String(actual.prefix(60)) }
             prompt = ""; pendingImage = nil
@@ -244,7 +270,7 @@ import ScreenCaptureKit
     func cancelAnswer() { task?.cancel() }
     func openSession(_ value: Session) {
         guard !recording && !startingAudio && !generating else { error = "Stop the current session before opening another."; return }
-        persistSession(); session = value; elapsed = value.duration; selectedHistory = value.id; page = "Session"; pendingImage = nil; partials = [:]
+        persistSession(); session = value; elapsed = value.duration; selectedHistory = value.id; page = "Session"; pendingImage = nil; partials = [:]; heardQuestion.reset(); liveTranscriptPreview = ""
     }
     func export(_ value: Session) {
         let panel = NSSavePanel(); panel.allowedContentTypes = [.plainText]; panel.nameFieldStringValue = "\(value.title.replacingOccurrences(of: "/", with: "-").prefix(60)).md"

@@ -26,7 +26,9 @@ Treat that as a request for the next versioned app release unless the user expli
 
 ## Commands
 
-- `bash scripts/build.sh`: compile and ad-hoc sign the current app.
+- `python3 scripts/signing.py setup`: explicit, one-time per-Mac setup for a non-extractable local signing key in login Keychain. Creating/importing a new signing identity requires the user's explicit approval. Private keys and local signing references must never enter Git or exports. No system trust-store changes.
+- `bash scripts/build.sh`: compile and sign with the persistent configured identity; never silently fall back to ad-hoc signing (which changes Keychain/TCC identity on rebuild).
+- `bash scripts/build.sh --stage-only`: prepare a signed .noindex app for an immediate swap after closing the current process.
 - `bash scripts/test.sh`: request/stream/storage tests plus release tests (uses synthetic localhost server).
 - `python3 scripts/release.py plan|check|preflight|prepare|dmg|package|publish`.
 - `python3 scripts/release.py publish --dry-run`: preview publication without remote changes.

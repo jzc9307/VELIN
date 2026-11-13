@@ -28,7 +28,15 @@ For Gemini, **Refresh models** requests Google's model catalog using the connect
 
 Each question includes recent chat, up to 24,000 characters of transcript context, custom instructions and context files. Screenshots are attached only to the next question, removed from memory afterward, and never stored in history. Requests do not automatically transmit live audio to the AI provider. OpenAI requests set store=false; provider terms/retention still apply. Only HTTPS endpoints and HTTP localhost are allowed. HTTP redirects are rejected so credentials cannot silently follow to a different host.
 
+## Keychain authorization
+
+API keys stay in macOS Keychain. A stable local signing certificate now identifies this Mac's VELIN builds; changing executable contents no longer changes the designated app identity. The first transition from the old ad-hoc build can still prompt. In macOS's VELIN Keychain dialog, enter your Mac login password yourself and choose **Always Allow** if you want future matching VELIN builds to use that saved key. Choosing **Allow** grants only that access. Never send the password in chat. Each saved item may need its own authorization; a locked/reset Keychain, changed signing identity or system privacy policy can require approval again. The local signature does not provide Developer ID notarization.
+
 ## Audio
+
+Press Listen while the call is running on this Mac; you do not need to close Teams or stop listening to see words. The floating bar shows live words and separate **You** (microphone) and **Computer** (meeting audio) meters. **Transcript ↗** opens the full live transcript. Green meter movement means audio is reaching that input; **Transcribing** means speech recognition returned text. If audio arrives but no words do, check the selected recognition language and on-device language availability. A silence hint appears after several seconds without a transcript.
+
+Each enabled input starts independently. If one cannot start, VELIN reports it and can continue with the working input. If neither works, it shows the errors and stays stopped. Computer capture requires Screen & System Audio Recording access; microphone and speech need their respective permissions. A separate phone's audio is not a Mac system-audio input. Listen still transcribes only; ask manually to send conversation text to the selected AI provider. No automatic answering or spoken output is enabled.
 
 Microphone uses AVAudioEngine. Computer audio uses ScreenCaptureKit. Apple Speech transcribes each input separately; channels re-arm periodically for long sessions. Text is labeled You and Computer, not automatically diarized by participant. Live segments appear before being finalized to history. No WAV/audio recordings are retained.
 
@@ -53,3 +61,9 @@ Hidden mode also sets Apple's legacy NSWindow sharing hint on the workspace and 
 ## Data and recovery
 
 settings.json stores non-secret settings/context and sessions.json stores session text under Application Support/VELIN. Writes are atomic with owner-only filesystem permissions. Data is not separately encrypted by VELIN; macOS account/disk protection still matters. Corrupt files are preserved and a visible error blocks overwrites. Back up the folder before manual recovery. Local API keys remain in Keychain when rebuilding the app. There is no cloud sync, meeting calendar integration or account/paywall service.
+
+On macOS 27 and later, supported languages use Apple’s continuous local SpeechTranscriber engine; its language assets are prepared on the first Listen. Earlier systems and unsupported analyzer languages use the legacy speech framework with the on-device preference respected. The newer engine stays local even if that preference is off. Microphone input follows the device used by macOS’s audio engine; Audio & Permissions displays its name. Teams can use a different microphone. EarPods output alone does not select the EarPods microphone for VELIN.
+
+You do not need to stop Listen to see words. Computer audio means sounds played by apps on this Mac, including a Teams call; it cannot directly hear a call running only on a separate phone. Listen places the other side’s recognized computer audio directly in Session → Conversation and the assistant’s live question card. Press Enter while VELIN has keyboard focus, click Answer ↵, or press Control+Option+Return from another app to answer without typing. Your microphone remains supporting context. The full raw transcript remains under Transcript. No AI request starts until you ask; a typed question takes precedence. Speech already submitted while partial is not repeated when finalized. Recognition failures stay visible per source; one unavailable input does not stop a working input.
+
+The pending question is collected from Computer audio, so a Teams call must run on this Mac with Computer audio enabled. In the floating bar, Answer ↵ becomes available as words arrive. Starting Listen opens Conversation, ready for this workflow.
