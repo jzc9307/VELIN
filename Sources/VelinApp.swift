@@ -25,6 +25,14 @@ final class AssistantPanel: NSPanel {
     override var canBecomeKey: Bool { true }
     override var canBecomeMain: Bool { false }
     var onDismiss: () -> Void = {}
+    override func sendEvent(_ event: NSEvent) {
+        if event.type == .leftMouseDown {
+            // A real user click owns keyboard focus; showing the bar alone does not.
+            NSApp.activate(ignoringOtherApps: true)
+            makeKeyAndOrderFront(nil)
+        }
+        super.sendEvent(event)
+    }
     override func cancelOperation(_ sender: Any?) { onDismiss() }
 }
 
@@ -42,10 +50,9 @@ struct OverlayView: View {
         VStack(spacing: 0) {
             VStack(spacing: 0) {
             HStack(alignment: .center, spacing: 12) {
-                TextField(model.recording ? "Press Enter to answer the other side…" : "Ask anything about your screen or conversation…", text: $model.prompt, axis: .vertical)
-                    .textFieldStyle(.plain).font(.system(size: 14, weight: .medium)).lineLimit(1...2)
-                    .onSubmit { model.ask() }
-                    .accessibilityLabel("Ask VELIN")
+                AssistantInput(text: $model.prompt,
+                    placeholder: model.recording ? "Type a question, or Enter to answer the other side…" : "Ask anything about your screen or conversation…",
+                    focusToken: model.promptFocusToken, submit: { model.ask() }).frame(height: 34)
                 Button { if model.generating { model.cancelAnswer() } else { model.ask() } } label: {
                     Image(systemName: model.generating ? "stop.fill" : "return").font(.system(size: 15, weight: .semibold))
                         .foregroundStyle(Ink.background).frame(width: 34, height: 34).background(Ink.mint, in: RoundedRectangle(cornerRadius: 10))
@@ -64,8 +71,8 @@ struct OverlayView: View {
                     .accessibilityValue(model.config.captureProtection ? "On" : "Off")
                     .help("Hidden mode hides the Dock and menu-bar icons and requests capture exclusion. Use ⌃⌥Space to reopen the bar; click the eye again to restore the icons.")
                 Button { model.toggleListening() } label: { HStack(spacing: 5) { Image(systemName: "waveform").font(.system(size: 14)); Text(model.startingAudio ? "Starting…" : model.recording ? clockText(model.elapsed) : "Listen").font(.system(size: 11, weight: .medium)).monospacedDigit() }.foregroundStyle(model.recording ? Ink.mint : Ink.muted) }.buttonStyle(IconPress()).disabled(model.startingAudio).help("Start / stop listening · ⌃⌥L")
-                Menu { ForEach(AssistantMode.allCases) { mode in Button(mode.rawValue) { model.config.mode = mode; model.session.mode = mode; model.saveConfig() } } } label: { OverlayMenuLabel(title: model.config.mode.rawValue, icon: "square.grid.2x2") }.menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
-                Menu { ForEach(model.config.profiles) { profile in Button("\(profile.name) · \(profile.provider.rawValue)") { model.config.activeProfileID = profile.id; model.saveConfig() } }; Divider(); Button("AI Connections…") { model.page = "AI Connections"; model.openMain() } } label: { OverlayMenuLabel(title: model.activeProfile?.provider.rawValue ?? "Connect AI", icon: "circle.hexagongrid") }.menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
+                Menu { ForEach(AssistantMode.allCases) { mode in Button(mode.rawValue) { model.config.mode = mode; model.session.mode = mode; model.saveConfig() } } } label: { OverlayMenuLabel(title: model.config.mode.rawValue, icon: "square.grid.2x2") }.menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize().modifier(OverlayMenuChrome())
+                Menu { ForEach(model.config.profiles) { profile in Button("\(profile.name) · \(profile.provider.rawValue)") { model.config.activeProfileID = profile.id; model.saveConfig() } }; Divider(); Button("AI Connections…") { model.page = "AI Connections"; model.openMain() } } label: { OverlayMenuLabel(title: model.activeProfile?.provider.rawValue ?? "Connect AI", icon: "circle.hexagongrid") }.menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize().modifier(OverlayMenuChrome())
                 Spacer(minLength: 0)
                 Button("History") { model.page = "History"; model.openMain() }.font(.system(size: 10, weight: .medium)).buttonStyle(IconPress()).help("Open session history")
                 Button { model.page = "AI Connections"; model.openMain() } label: { Image(systemName: "gearshape").font(.system(size: 12)) }.buttonStyle(IconPress()).help("AI settings")
@@ -75,7 +82,7 @@ struct OverlayView: View {
                 Button(action: close) { Image(systemName: "xmark").font(.system(size: 11)) }.buttonStyle(IconPress()).help("Hide assistant · ⌃⌥Space")
             }.foregroundStyle(Ink.muted).padding(.horizontal, 18).frame(height: 42)
             }.frame(height: 120, alignment: .top).background(Ink.background.opacity(model.config.overlayOpacity))
-            if sectionState[0] { ListeningStatusView(model: model, compact: true).frame(height: model.audioWarning.isEmpty ? 142 : 170, alignment: .top).background(Ink.background.opacity(model.config.overlayOpacity)).transition(.opacity) }
+            if sectionState[0] { ListeningStatusView(model: model, compact: true).frame(height: model.audioWarning.isEmpty ? 178 : 206, alignment: .top).background(Ink.background.opacity(model.config.overlayOpacity)).transition(.opacity) }
             if let image = model.pendingImage, let nsImage = NSImage(data: image) {
                 Rectangle().fill(Ink.line).frame(height: 1)
                 HStack(spacing: 12) {
@@ -116,6 +123,19 @@ struct OverlayView: View {
             .animation(reduceMotion ? nil : .timingCurve(0.22, 1, 0.36, 1, duration: 0.18), value: model.config.captureProtection)
             .offset(y: reduceMotion || model.assistantPresented ? 0 : 6)
             .foregroundStyle(.white.opacity(0.95)).preferredColorScheme(.dark).scrollIndicators(.hidden).onExitCommand { close() }
+    }
+}
+
+private struct OverlayMenuChrome: ViewModifier {
+    @ViewState private var hovering = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    func body(content: Content) -> some View {
+        content.padding(.horizontal, 6).frame(height: 32)
+            .background(.white.opacity(hovering ? 0.13 : 0.025), in: RoundedRectangle(cornerRadius: 8))
+            .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(hovering ? Ink.mint.opacity(0.35) : .white.opacity(0.055)).allowsHitTesting(false))
+            .contentShape(RoundedRectangle(cornerRadius: 8))
+            .onHover { hovering = $0 }
+            .animation(reduceMotion ? nil : .easeOut(duration: 0.12), value: hovering)
     }
 }
 
@@ -201,9 +221,9 @@ final class Hotkeys {
             window.center()
         }
         UserDefaults.standard.set(true, forKey: "compactWorkspaceFrameV1")
-        panel = AssistantPanel(contentRect: NSRect(x: 0, y: 0, width: 660, height: 120), styleMask: [.borderless, .resizable, .nonactivatingPanel], backing: .buffered, defer: false)
+        panel = AssistantPanel(contentRect: NSRect(x: 0, y: 0, width: 660, height: 120), styleMask: [.borderless, .resizable], backing: .buffered, defer: false)
         panel.isReleasedWhenClosed = false
-        panel.onDismiss = { [weak self] in self?.hidePanel() }; panel.title = "VELIN Assistant"; panel.isFloatingPanel = true; panel.level = .floating; panel.hidesOnDeactivate = false
+        panel.onDismiss = { [weak self] in self?.hidePanel() }; panel.title = "VELIN Assistant"; panel.isFloatingPanel = true; panel.becomesKeyOnlyIfNeeded = false; panel.level = .floating; panel.hidesOnDeactivate = false
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         panel.isMovableByWindowBackground = true; panel.isOpaque = false; panel.backgroundColor = .clear
         panel.hasShadow = true; panel.minSize = NSSize(width: 540, height: 118); panel.maxSize = NSSize(width: 900, height: 760)

@@ -76,7 +76,10 @@ struct HeardQuestionDraft {
     private var completed: [String] = []
     private var partial = ""
     private var consumedWords = 0
-    var text: String {
+    private var editedText: String?
+    var isEdited: Bool { editedText != nil }
+    var text: String { editedText ?? liveText }
+    var liveText: String {
         String((completed + [remainder(partial)]).filter { !$0.isEmpty }.joined(separator: " ").suffix(6000))
     }
     private func clean(_ text: String) -> String {
@@ -86,6 +89,8 @@ struct HeardQuestionDraft {
     private func remainder(_ text: String) -> String {
         clean(text.split(whereSeparator: \.isWhitespace).dropFirst(consumedWords).joined(separator: " "))
     }
+    mutating func edit(_ words: String) { editedText = String(words.prefix(6000)) }
+    mutating func resumeLive() { editedText = nil }
     mutating func update(_ words: String) { partial = clean(words) }
     mutating func finish(_ words: String) {
         let pending = remainder(words)
@@ -94,6 +99,7 @@ struct HeardQuestionDraft {
         partial = ""; consumedWords = 0
     }
     mutating func consume() {
+        editedText = nil
         completed = []
         consumedWords = partial.split(whereSeparator: \.isWhitespace).count
     }

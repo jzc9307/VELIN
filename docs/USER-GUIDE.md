@@ -73,3 +73,15 @@ The pending question is collected from Computer audio, so a Teams call must run 
 This build uses a bundled VELIN Keychain XPC component. It accepts only the same-signed VELIN app and accesses only VELIN provider-key items. Existing keys stay in login Keychain. On its first read, approve VELIN Keychain with Always Allow in macOS. Its signed binary is reused across ordinary UI/model updates, keeping the legacy Keychain partition identity stable. A changed component, signing identity, build toolchain, or a Keychain lock/reset can require renewed approval. No login item, all-app credential access, or system trust change is installed.
 
 Stopping Listen smoothly collapses the live audio strip. The full transcript and any unanswered spoken question remain in the session’s Conversation/Transcript pages.
+
+### Edit a spoken question
+
+Click the live question text in the floating assistant or Conversation to correct it. Your edited question is protected while raw transcription continues in the session. Enter requests an answer using the edited text; Shift+Enter adds a line break. Resume live replaces your corrections with the latest recognized text. Long drafts scroll within a fixed area and follow new speech until you edit; the full transcript remains in the session.
+
+After attaching a screenshot, the question field receives keyboard focus. Type the question and press Enter. If you leave it empty, the screenshot is the topic instead of unrelated pending speech.
+
+### Typing into the floating assistant
+
+Click VELIN’s question field or live transcript editor before typing. The click activates VELIN and transfers keyboard ownership from the app underneath; the bar remains floating. Showing the bar alone still avoids explicitly activating VELIN. Screenshot attachment focuses the question field. Only Enter or Send submits a request; switching focus or opening menus does not.
+
+Meeting and provider menus use the same rounded hover border and background as the other compact controls.

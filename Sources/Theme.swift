@@ -46,15 +46,15 @@ private struct PressBody: View {
     var body: some View {
         configuration.label
             .font(.system(size: compact ? 11 : 13, weight: .semibold))
-            .padding(.horizontal, compact ? 7 : 15).frame(minWidth: compact ? 28 : 0, minHeight: compact ? 28 : 36)
+            .padding(.horizontal, compact ? 7 : 15).frame(minWidth: compact ? 32 : 0, minHeight: compact ? 32 : 36)
             .foregroundStyle(primary ? Ink.background : hover ? Ink.mint : .white.opacity(0.88))
-            .background(primary ? Ink.mint.opacity(configuration.isPressed ? 0.72 : 1) : .white.opacity(configuration.isPressed ? 0.17 : hover ? 0.085 : compact ? 0 : 0.045), in: RoundedRectangle(cornerRadius: compact ? 8 : 10))
-            .overlay(RoundedRectangle(cornerRadius: compact ? 8 : 10).strokeBorder(primary ? Ink.mint.opacity(0.5) : hover ? Ink.mint.opacity(0.22) : compact ? .clear : Ink.line))
+            .background(primary ? Ink.mint.opacity(configuration.isPressed ? 0.72 : 1) : .white.opacity(configuration.isPressed ? 0.26 : hover ? 0.13 : compact ? 0.025 : 0.045), in: RoundedRectangle(cornerRadius: compact ? 8 : 10))
+            .overlay(RoundedRectangle(cornerRadius: compact ? 8 : 10).strokeBorder(primary ? Ink.mint.opacity(0.5) : configuration.isPressed ? Ink.mint.opacity(0.65) : hover ? Ink.mint.opacity(0.35) : compact ? .white.opacity(0.055) : Ink.line))
             .shadow(color: primary && hover ? Ink.mint.opacity(0.16) : .clear, radius: 10, y: 2)
-            .scaleEffect(configuration.isPressed && !reduceMotion ? (compact ? 0.88 : 0.96) : 1)
+            .scaleEffect(configuration.isPressed && !reduceMotion ? (compact ? 0.90 : 0.95) : 1)
             .opacity(enabled ? 1 : 0.4)
             .contentShape(RoundedRectangle(cornerRadius: 9))
-            .animation(reduceMotion ? nil : .spring(response: 0.18, dampingFraction: 0.55), value: configuration.isPressed)
+            .animation(reduceMotion ? nil : .spring(response: 0.16, dampingFraction: 0.65), value: configuration.isPressed)
             .animation(reduceMotion ? nil : .easeOut(duration: 0.12), value: hover)
             .onHover { hover = $0 }
             .onChange(of: configuration.isPressed) { _, pressed in if pressed && enabled { NSHapticFeedbackManager.defaultPerformer.perform(.alignment, performanceTime: .now) } }

@@ -19,8 +19,18 @@ struct ListeningStatusView: View {
             }
             if !compact { Text("Microphone input: " + model.microphoneInputName + ". Teams may use a different input.").font(.system(size: 10)).foregroundStyle(Ink.muted) }
             if !model.audioWarning.isEmpty { Text(model.audioWarning).font(.system(size: 10)).foregroundStyle(Ink.lilac).lineLimit(compact ? 2 : 6) }
-            Text(!model.pendingHeardQuestion.isEmpty ? "Other side: " + model.pendingHeardQuestion : model.liveTranscriptPreview.isEmpty ? (model.recording && model.elapsed >= 8 ? "No words yet. Check the call audio, input meters, and transcription language." : "Live words appear here as you or the meeting speaks.") : model.liveTranscriptPreview)
-                .font(.system(size: compact ? 11 : 13)).foregroundStyle(model.liveTranscriptPreview.isEmpty ? Ink.muted : .white.opacity(0.95)).lineLimit(compact ? 2 : 5).frame(maxWidth: .infinity, alignment: .leading)
+            if !model.pendingHeardQuestion.isEmpty || model.heardQuestion.isEdited {
+                HStack(spacing: 7) {
+                    Text(model.heardQuestion.isEdited ? "Edited question" : "Other side · live").font(.system(size: 9, weight: .medium)).foregroundStyle(Ink.muted)
+                    Spacer()
+                    if model.heardQuestion.isEdited { Button("Resume live") { model.heardQuestion.resumeLive() }.buttonStyle(IconPress()).font(.system(size: 9)) }
+                }.frame(height: 20)
+                SpeechDraftEditor(model: model, compact: compact).frame(height: compact ? 48 : 72)
+                    .background(.white.opacity(0.035), in: RoundedRectangle(cornerRadius: 8))
+            } else {
+                Text(model.recording && model.elapsed >= 8 ? "Waiting for speech… Check the audio meters and language." : "Live words appear here. Click them to edit before answering.")
+                    .font(.system(size: compact ? 11 : 13)).foregroundStyle(Ink.muted).lineLimit(2).frame(maxWidth: .infinity, alignment: .leading)
+            }
         }.padding(compact ? 13 : 18).background(Ink.background.opacity(model.config.overlayOpacity))
     }
     func meter(_ source: String, _ icon: String, _ value: Double) -> some View {
@@ -36,14 +46,18 @@ struct ListeningStatusView: View {
 struct HeardQuestionView: View {
     @ObservedObject var model: AppModel
     var body: some View {
-        if !model.pendingHeardQuestion.isEmpty {
+        if !model.pendingHeardQuestion.isEmpty || model.heardQuestion.isEdited {
             VStack(alignment: .leading, spacing: 10) {
                 HStack {
                     Label("OTHER SIDE", systemImage: "waveform").font(.system(size: 9, weight: .bold)).tracking(1).foregroundStyle(Ink.mint)
                     Spacer()
                     Button(model.generating ? "Answering…" : "Answer ↵") { model.ask() }.buttonStyle(Press(primary: true)).font(.system(size: 11, weight: .semibold)).disabled(model.generating).keyboardShortcut(.return, modifiers: [])
                 }
-                Text(model.pendingHeardQuestion).font(.system(size: 13)).lineSpacing(4).lineLimit(4).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading)
+                SpeechDraftEditor(model: model).frame(height: 86)
+                    .background(.white.opacity(0.035), in: RoundedRectangle(cornerRadius: 8))
+                if model.heardQuestion.isEdited {
+                    HStack { Text("Your edits are protected while transcription continues.").font(.system(size: 10)).foregroundStyle(Ink.muted); Spacer(); Button("Resume live") { model.heardQuestion.resumeLive() }.buttonStyle(IconPress()) }
+                }
                 Text("Press Enter to answer · ⌃⌥Return from another app").font(.system(size: 10)).foregroundStyle(Ink.muted)
             }.padding(16).background(Ink.mint.opacity(0.06), in: RoundedRectangle(cornerRadius: 14)).padding(12)
         }

@@ -56,6 +56,21 @@ import AVFoundation
         heard.update("Why use it?"); heard.finish("Why use it?"); heard.finish(".")
         precondition(heard.text == "Why use it?")
         print("PASS: new speech remains answerable and punctuation-only results stay out")
+        var editable = HeardQuestionDraft()
+        editable.update("What is J son?"); editable.edit("What is JSON?")
+        editable.update("What is J son and why is it useful?"); editable.finish("What is J son and why is it useful?")
+        precondition(editable.text == "What is JSON?" && editable.isEdited && editable.liveText.contains("useful"))
+        print("PASS: manual corrections survive both live recognition revisions and finalization")
+        editable.resumeLive()
+        precondition(!editable.isEdited && editable.text.contains("useful"))
+        editable.edit(""); editable.update("New words")
+        precondition(editable.text.isEmpty && editable.isEdited)
+        print("PASS: Resume live restores recognition while a deliberately cleared draft remains protected")
+        editable.edit("Corrected question"); editable.consume(); editable.finish("New words")
+        precondition(editable.text.isEmpty && !editable.isEdited)
+        for number in 0..<400 { editable.finish("Sentence \(number) has several words.") }
+        precondition(editable.text.count <= 6000 && editable.text.hasSuffix("Sentence 399 has several words."))
+        print("PASS: consumed edits do not replay and long live speech keeps its newest bounded text")
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("velin-profile-test-\(UUID())")
         defer { try? FileManager.default.removeItem(at: root) }
         let store = SessionStore(root: root)
@@ -135,7 +150,26 @@ import AVFoundation
             model.newSession()
             precondition(model.pendingHeardQuestion.isEmpty)
             print("PASS: a new session clears the previous pending spoken question")
+            local.endpoint = CommandLine.arguments[1] + "/packaged"; model.config.profiles[0] = local
+            model.receiveSpeechPartial(source: "Computer", text: "What is J son?")
+            model.heardQuestion.edit("What is JSON?")
+            model.receiveSpeechFinal(source: "Computer", text: "What is J son?")
+            model.ask()
+            for _ in 0..<300 { if !model.generating { break }; try await Task.sleep(nanoseconds: 10_000_000) }
+            precondition(model.session.messages.first?.text == "What is JSON?" && model.pendingHeardQuestion.isEmpty)
+            precondition(model.session.transcript.last?.text == "What is J son?")
+            print("PASS: Enter submits the corrected spoken question while preserving the source transcript")
+            model.newSession(); model.receiveSpeechFinal(source: "Computer", text: "Unrelated old speech")
+            let focusBefore = model.promptFocusToken
+            model.attachScreenshot(Data("synthetic screenshot fixture".utf8))
+            precondition(model.session.messages.isEmpty && !model.generating && model.pendingImage != nil && model.promptFocusToken > focusBefore)
+            print("PASS: attaching a screenshot requests input focus without starting generation")
+            model.ask()
+            for _ in 0..<300 { if !model.generating { break }; try await Task.sleep(nanoseconds: 10_000_000) }
+            precondition(model.session.messages.first?.text == "Help me understand this screenshot." && model.session.messages.first?.attachment == true)
+            precondition(model.session.messages.first?.inputSource == nil && model.pendingHeardQuestion == "Unrelated old speech")
+            print("PASS: a screenshot without typed text takes priority over unrelated pending speech")
         }
-        print("\(24 + modernChecks) profile regression checks passed with transport fixture.")
+        print("\(30 + modernChecks) profile regression checks passed with transport fixture.")
     }
 }
