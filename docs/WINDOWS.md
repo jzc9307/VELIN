@@ -15,7 +15,7 @@ This initial Windows implementation was cross-compiled on macOS. Its shared requ
 ## First use
 
 1. Open **AI Connections**, choose a provider, enter an available model ID and API key, then **Save connection**. Keep up to five profiles; selecting a saved profile in the assistant changes the active provider. Keys stay in your Windows account’s Credential Manager, not settings JSON.
-2. Open **Audio & Permissions**. Choose microphone and/or computer audio, enter your installed recognition language (for example `en-US`), and save while Listen is stopped.
+2. Open **Audio & Permissions**. Choose your speech engine. For Windows Speech, enter an installed recognition language (for example `en-US`); for Local multilingual, choose Malaysia and download or select a model. Save while both Listen and Mic are stopped.
 3. For the native engine, install the matching local Windows Speech recognizer through **Settings → Time & language → Speech** if needed. This preview uses classic installed Windows Speech engines, not cloud dictation. Windows language support differs from macOS. Missing engines fail with an explanation rather than silently uploading audio.
 4. Open the floating assistant and start **Listen**. Computer audio captures the PC’s default output, including a meeting running on that device. Mic independently dictates into the question field and does not populate the meeting transcript. A separate phone call is not captured digitally.
 5. Correct the live computer-speech text if necessary, then press **Enter** in VELIN or **Ctrl+Alt+Enter** from another app. Speech alone does not start an AI request. **Resume live** restores recognition text after a correction.

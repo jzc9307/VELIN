@@ -13,7 +13,7 @@ No pending changes.
 - Add Country → Malaysia beneath Local multilingual, supplying the English/Bahasa Melayu/Mandarin recognition preset. Show the selected preset in the listening status.
 - Replace confusing saved-source toggles with actual Start/Stop Listen and Start/Stop Mic controls.
 
-- Make Listen computer-audio-first, with a separate optional microphone toggle that can change without restarting the meeting stream; migrate the original two-input default once and preserve later explicit choices.
+- Keep the meeting stream running when starting or stopping independent Mic dictation; preserve existing speech-engine and language preferences.
 - Reduce the gap between assistant controls and live speech, retaining the fixed top edge and downward animation.
 - Add an optional, entirely local multilingual Whisper engine for Malay, Mandarin, English and experimental Malaysian code-switching, with bounded audio buffering, a bundled warm worker, integrity-checked Base/Small model downloads and editable output. No cloud audio upload; mixed-language accuracy remains limited and Windows runtime needs verification.
 - Add a separate About me section and a local guided introduction builder using only supplied facts, with optional age.

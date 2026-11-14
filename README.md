@@ -90,7 +90,7 @@ Every published version keeps its own macOS and available Windows links. Newest 
 ### Quick start
 
 1. Open **AI Connections**, choose a provider and model, paste its API key, and save. Ollama uses your local server.
-2. Enable your audio sources and approve macOS permissions, or install a matching local Windows Speech language in the Windows preview.
+2. Choose your speech engine and approve the required permissions. Listen captures computer audio; Mic dictates into the question box. For Local multilingual, choose Malaysia and download or select a model.
 3. Start **Listen** while your call runs on this computer. Read the other side’s words in Conversation or the floating bar.
 4. Press **Enter** with VELIN focused. From another app, use **Control+Option+Return** on Mac or **Ctrl+Alt+Enter** on Windows.
 
