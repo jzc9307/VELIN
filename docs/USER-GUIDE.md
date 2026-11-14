@@ -101,3 +101,9 @@ For Malay/Mandarin/English or Malaysian mixed speech, Audio & Permissions offers
 Listen is computer-only and appears in the lower panel. Mic is dictation for the top question field; it works without Listen and creates no second microphone transcript. You can correct the dictated question and press Enter. Stopping one control leaves the other running. Starting/stopping does not send AI requests. The settings page shows actual start/stop controls rather than saved source switches.
 
 Local multilingual now has **Country → Malaysia**, covering the English/Bahasa Melayu/Mandarin mix. Select the country/model, save, then use either control. The native engine continues using its own selected single language. Settings changes apply to the next start, and both controls must be stopped to change the engine/model.
+
+## Continue and browse a conversation
+
+The floating answer area retains the whole session. A new turn starts at its question; scroll upward for earlier turns and downward through a long answer. Streaming never forces you to the bottom. Reply-view buttons stay below the scroll area. Answer/Say this/Next step/Explain more reveal prepared content; **Yes, continue** appears only in Next step and explicitly generates a new AI reply using that suggestion and conversation context. Send or clear a draft/screenshot first, so continuing cannot accidentally submit it.
+
+For optional cloud speech, choose Soniox in Audio & Permissions, save its separate API key, explicitly allow streaming and save settings. No local model download is needed. See [speech setup](LANGUAGES.md). Offline engines stay available.

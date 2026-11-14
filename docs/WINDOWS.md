@@ -67,3 +67,7 @@ dotnet run --project Windows/VELIN.Core.Tests/VELIN.Core.Tests.csproj -c Release
 ```
 
 Report Windows version, device/output, installed speech language and exact error when testing. Never attach API keys or private call transcripts to an issue.
+
+## v0.2.1 speech and conversation
+
+The overlay retains earlier turns above the current reply; Yes, continue appears only in Next step and makes an explicit new chat request based on that suggestion. Every mode has a distinct built-in behavior. Offline models show Download / Use installed / Selected states, with Base, Small and Turbo choices. Optional Soniox STT v6 needs its own speech API key in Credential Manager and explicit streaming consent; it streams only started controls to Soniox. Provider charges apply. No cloud or Windows live-call acceptance test has been completed. See [speech setup](LANGUAGES.md).

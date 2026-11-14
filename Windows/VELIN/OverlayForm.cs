@@ -16,6 +16,7 @@ internal sealed class OverlayForm : Form
     readonly NotifyIcon tray;
     readonly FlowLayoutPanel chips = Theme.Row();
     readonly System.Windows.Forms.Timer animation = new() { Interval = 15 };
+    string displayedReply = "";
     bool updating, expanded, animating; int fromHeight, targetHeight; DateTime animationStart; string answerView = "Answer"; Guid? shownAnswer; byte[]? shownImage; bool appliedProtection;
     const int BaseHeight = 126;
     public OverlayForm(Controller state)
@@ -47,6 +48,7 @@ internal sealed class OverlayForm : Form
         foreach (Control c in stack.Controls) c.Width = ClientSize.Width - 24;
         var trayMenu = new ContextMenuStrip(); trayMenu.Items.Add("Show assistant", null, (_, _) => Reveal()); trayMenu.Items.Add("Start / stop Listen", null, (_, _) => Run(state.ToggleListen)); trayMenu.Items.Add("Workspace / settings", null, (_, _) => state.Main?.OpenPage("Overview")); trayMenu.Items.Add("Quit VELIN", null, (_, _) => { state.Quitting = true; Application.Exit(); });
         tray = new NotifyIcon { Icon = Icon, Text = "VELIN · Ctrl+Alt+Space", ContextMenuStrip = trayMenu, Visible = true }; tray.DoubleClick += (_, _) => Reveal();
+        chips.Controls.Add(new ClickButton("Yes, continue", () => Run(() => state.ContinueReply(displayedReply))) { Width = 130 });
         animation.Tick += (_, _) => { var t = Math.Clamp((DateTime.UtcNow - animationStart).TotalMilliseconds / 220, 0, 1); var ease = 1 - Math.Pow(1 - t, 3); Height = (int)Math.Round(fromHeight + (targetHeight - fromHeight) * ease); if (t >= 1) { animation.Stop(); animating = false; } };
         state.Changed += Render; FormClosing += (_, e) => { if (!state.Quitting) { e.Cancel = true; Hide(); } }; Render();
     }
@@ -68,7 +70,7 @@ internal sealed class OverlayForm : Form
             if ((!heard.Focused || !state.Heard.IsEdited) && heard.Text != state.Heard.Text) { heard.Text = state.Heard.Text; heard.SelectionStart = heard.TextLength; heard.ScrollToCaret(); }
             audioStatus.Text = (state.Heard.IsEdited ? "Your correction · " : "") + state.Status + $"    Computer {state.ComputerLevel:P0}";
             listen.Text = state.AudioBusy ? "Starting…" : state.Listening ? "Stop" : "Listen"; listen.Width = 76; listen.Enabled = !state.AudioBusy; listen.Primary = state.Listening;
-            mode.Text = state.Config.Mode + " ▾"; mode.Width = 100; microphone.Primary = state.MicActive; microphone.Enabled = !state.MicBusy; microphone.Text = state.MicBusy ? "…" : "Mic"; provider.Text = (state.Active?.Provider ?? "AI") + " ▾"; provider.Width = 90; send.Enabled = !state.Generating; expand.Text = expanded ? "⌃" : "⌄";
+            mode.Text = state.Config.Mode + " ▾"; mode.Width = 110; microphone.Primary = state.MicActive; microphone.Enabled = !state.MicBusy; microphone.Text = state.MicBusy ? "…" : "Mic"; provider.Text = (state.Active?.Provider ?? "AI") + " ▾"; provider.Width = 90; send.Enabled = !state.Generating; expand.Text = expanded ? "⌃" : "⌄";
             imagePanel.Visible = state.Image != null; if (!ReferenceEquals(shownImage, state.Image)) { shownImage = state.Image; var old = preview.Image; preview.Image = null; old?.Dispose(); if (shownImage != null) { using var stream = new MemoryStream(shownImage); using var bitmap = Image.FromStream(stream); preview.Image = new Bitmap(bitmap); } }
             answerPanel.Visible = expanded && state.Session.Messages.Any(m => m.Role == "assistant"); RenderAnswer();
             error.Text = state.Error; error.Visible = state.Error.Length > 0;
@@ -82,8 +84,12 @@ internal sealed class OverlayForm : Form
         var latest = state.Session.Messages.LastOrDefault(m => m.Role == "assistant"); if (latest == null) { answer.Clear(); question.Text = ""; return; }
         var user = state.Session.Messages.TakeWhile(m => m.Id != latest.Id).LastOrDefault(m => m.Role == "user"); question.Text = "You · " + user?.Text;
         var text = answerView switch { "Say this" => latest.Extras?.Say, "Next step" => latest.Extras?.Next, "Explain more" => latest.Extras?.More, _ => latest.Text }; if (string.IsNullOrWhiteSpace(text)) text = state.Generating ? "Preparing this view in the current response…" : "This response did not include that view.";
-        foreach (Control control in chips.Controls) if (control is ClickButton button) button.Enabled = button.Text switch { "Say this" => !string.IsNullOrWhiteSpace(latest.Extras?.Say), "Next step" => !string.IsNullOrWhiteSpace(latest.Extras?.Next), "Explain more" => !string.IsNullOrWhiteSpace(latest.Extras?.More), _ => true };
-        if (answer.Text == text) return; var newAnswer = shownAnswer != latest.Id; var selection = answer.SelectionStart; var length = answer.SelectionLength; var scroll = Native.FirstVisibleLine(answer.Handle); answer.Text = text; answer.Select(newAnswer ? 0 : Math.Min(selection, text.Length), newAnswer ? 0 : Math.Min(length, text.Length - Math.Min(selection, text.Length))); if (newAnswer) { answer.ScrollToCaret(); shownAnswer = latest.Id; } else Native.ScrollLines(answer.Handle, scroll - Native.FirstVisibleLine(answer.Handle));
+        foreach (Control control in chips.Controls) if (control is ClickButton button) { if(button.Text=="Yes, continue")button.Visible=answerView=="Next step"; button.Enabled = button.Text switch { "Say this" => !string.IsNullOrWhiteSpace(latest.Extras?.Say), "Next step" => !string.IsNullOrWhiteSpace(latest.Extras?.Next), "Explain more" => !string.IsNullOrWhiteSpace(latest.Extras?.More), "Yes, continue" => answerView=="Next step" && !state.Generating && !string.IsNullOrWhiteSpace(text), _ => true }; }
+        displayedReply = text ?? "";
+        var prior = state.Session.Messages.TakeWhile(m => m.Id != latest.Id).Select(m => (m.Role == "user" ? "YOU" : "VELIN") + "\r\n" + m.Text);
+        var history = string.Join("\r\n\r\n", prior); var anchor = history.LastIndexOf("YOU\r\n", StringComparison.Ordinal); text = history + "\r\n\r\nVELIN\r\n" + text;
+        question.Text = "Scroll up for earlier turns";
+        if (answer.Text == text) return; var newAnswer = shownAnswer != latest.Id; var selection = answer.SelectionStart; var length = answer.SelectionLength; var scroll = Native.FirstVisibleLine(answer.Handle); answer.Text = text; answer.Select(newAnswer ? Math.Max(0, anchor) : Math.Min(selection, text.Length), newAnswer ? 0 : Math.Min(length, text.Length - Math.Min(selection, text.Length))); if (newAnswer) { answer.ScrollToCaret(); shownAnswer = latest.Id; } else Native.ScrollLines(answer.Handle, scroll - Native.FirstVisibleLine(answer.Handle));
     }
     protected override void OnHandleCreated(EventArgs e) { base.OnHandleCreated(e); var ok = true; var keys = new[] { Keys.Space, Keys.Enter, Keys.L, Keys.S }; for (int i = 0; i < keys.Length; i++) ok &= Native.RegisterHotKey(Handle, 701 + i, 0x4003, (uint)keys[i]); if (!ok) state.SetError("A VELIN shortcut is already used by another app. Use the tray controls."); if (Native.SetWindowDisplayAffinity(Handle, state.Config.CaptureProtection ? 0x11u : 0u)) appliedProtection = state.Config.CaptureProtection; else if (state.Config.CaptureProtection) state.SetError("Windows could not apply capture exclusion. Do not assume the bar is excluded."); }
     protected override void OnHandleDestroyed(EventArgs e) { for (int i = 0; i < 4; i++) Native.UnregisterHotKey(Handle, 701 + i); base.OnHandleDestroyed(e); }

@@ -1,25 +1,20 @@
-# Listening languages and Malaysian mixed speech
+# Speech engines and model downloads
 
-**Listen** captures only computer audio and puts the interviewer’s words in the lower transcript/question panel. **Mic** independently dictates your own speech into the top question box. Mic does not require Listen, does not create a You row in the meeting transcript, and does not send an AI request. Press Enter to submit the editable question. You can run either control or both, and stop each independently. Both start inactive when the app opens.
+**Listen** captures computer audio into the lower editable question. **Mic** independently dictates into the top question field. Both start inactive; neither automatically sends a chat question.
 
-In **Audio & Permissions**, use the actual Start/Stop Listen and Start/Stop Mic controls. The previous saved source toggles are no longer used. Stop both controls before changing their shared speech engine, country or model.
+## Optional Soniox cloud speech
 
-## Two speech engines
+Select **Soniox cloud · mixed languages** in Audio & Permissions, paste a Soniox API key privately into the speech key field, save it, enable the audio-streaming consent switch and save speech settings. Then start Listen or Mic normally. No local model download is needed. Chat-provider keys, including Gemini keys, do not work as Soniox speech keys.
 
-| Engine | Best use | Processing |
-| --- | --- | --- |
-| Apple on Mac / Windows Speech on Windows | Fast live words in one selected language | Native recognition; installed language/assets determine support. Mac defaults to requiring on-device processing. |
-| Local multilingual · experimental | Malay, Mandarin, English and mixed-language speech | Bundled whisper.cpp worker, downloaded multilingual model, all audio processed locally. No audio uploads. |
+Audio from each started control streams to `wss://stt-rt.soniox.com/transcribe-websocket` using STT v6, English/Malay/Chinese language hints, no translation and endpoint detection. Stopping a control cancels its connection; failures do not reconnect or switch providers automatically. Both controls at once create two speech streams. Soniox charges and processing/retention policies apply. Keys stay in Keychain/Credential Manager; no keys enter settings JSON. Biography, screenshots and chat messages are not sent to the speech service.
 
-The Malaysia preset supplies English, Bahasa Melayu and Mandarin recognition hints without requesting your location. It does not force AI response language or promise perfect code-switching.
+The implementation follows the official [streaming API](https://docs.soniox.com/api-reference/stt/websocket-api), [language support](https://docs.soniox.com/stt/concepts/supported-languages), and [models](https://docs.soniox.com/stt/models). Provider support does not establish real-call accuracy; no live Soniox accuracy or billing test has been run without a supplied speech key.
 
-A language menu alone does not make the native recognizer multilingual. Select **Audio & Permissions → Local multilingual → Country: Malaysia**, download **Base (142 MiB)** or **Small (466 MiB)**, then save/start Listen or Mic. Models download from Hugging Face; they are not included in Git, DMGs or EXEs. Downloads are checked against the upstream model hash. A local multilingual `.bin` can also be selected; English-only `.en` models are rejected. Model files must remain available at their selected path.
+## Offline model state
 
-The worker keeps its model loaded for the listening session. Speech is decoded after a pause (roughly 0.65 seconds) or in approximately six-second chunks during continuous speech, so there is buffering before words appear. It does not translate deliberately. The language/spelling hint is optional and can help with names, but is not a guarantee. Base uses less memory; Small can improve some errors at greater resource cost. Choose the native engine when lowest live-text delay matters most.
+These downloads are speech-recognition weights, separate from the chat AI you choose. **Download** installs and validates the file once; **Use installed** selects an existing verified file without a network download; **Selected ✓** is disabled. Installation is checked again when this page opens. Corrupt files are not marked installed. Choosing a custom `.bin` remains available.
 
-**Malaysian code-switching remains experimental.** Malay, English and Mandarin may be kept in the same output, but accents, dialects, colloquial particles such as “lah,” rapid language changes, names, background music and short phrases can still be wrong or romanized. Editable transcript correction remains available. No guarantee of perfect multilingual transcription, universal Malaysian dialect support or zero latency is made.
-
-Native language choices include Bahasa Melayu (Malaysia), Mandarin, traditional Chinese, Cantonese, English (Malaysia/US/UK), Indonesian and Tamil, plus the existing languages. Actual local support is checked by the OS. A language name in the list does not guarantee an installed recognizer.
+Base (142 MB) is lightweight but can be very poor for English/Chinese code-switching. Small (466 MB) and Turbo (large-v3-turbo-q5_0, 547 MB) provide larger options with higher memory costs. A model upgrade is not a reliable fix for Malaysian slang. Local output remains editable and experimental. The optional cloud path is available separately, never as a silent fallback.
 
 ## What was checked
 

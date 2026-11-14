@@ -123,6 +123,22 @@ import AVFoundation
         precondition(!json.contains("fixture-replacement-key"))
         print("PASS: no key enters settings JSON")
         if CommandLine.arguments.count > 1 {
+            let cloud = SonioxSpeechChannel(source: "Computer", key: "fixture-speech-key", endpoint: URL(string: CommandLine.arguments[1].replacingOccurrences(of: "http://", with: "ws://") + "/speech-socket")!)
+            var cloudFinal = "", cloudPartials: [String] = [], cloudFailure = ""
+            cloud.final = { _, text in cloudFinal += text }; cloud.partial = { _, text in cloudPartials.append(text) }; cloud.failure = { cloudFailure = $0 }
+            try await cloud.begin()
+            let cloudBuffer = AVAudioPCMBuffer(pcmFormat: AVAudioFormat(standardFormatWithSampleRate: 44100, channels: 1)!, frameCapacity: 4410)!
+            cloudBuffer.frameLength = 4410
+            for frame in 0..<4410 { cloudBuffer.floatChannelData![0][frame] = 0.03 }
+            cloud.append(cloudBuffer)
+            for _ in 0..<300 { if !cloudFinal.isEmpty || !cloudFailure.isEmpty { break }; try await Task.sleep(nanoseconds: 10_000_000) }
+            cloud.stop()
+            precondition(cloudFinal == "你好 JSON" && cloudPartials.contains("你好 J son") && cloudPartials.contains("你好 JSON") && cloudFailure.isEmpty)
+            print("PASS: real loopback WebSocket validates header auth, text config, PCM conversion and mixed partial/final speech without a cloud API")
+            let hashFixture = root.appendingPathComponent("model-hash-fixture")
+            try Data("abc".utf8).write(to: hashFixture)
+            precondition(SpeechModels.verified(hashFixture, sha: "a9993e364706816aba3e25717850c26c9cd0d89d") && !SpeechModels.verified(hashFixture, sha: String(repeating: "0", count: 40)))
+            print("PASS: speech model validation accepts matching bytes and rejects corruption")
             var local = profile; local.provider = .custom; local.endpoint = CommandLine.arguments[1] + "/error"; local.model = "fixture"
             model.config.profiles[0] = local; model.config.activeProfileID = local.id
             model.ask("Synthetic failed-answer regression")
@@ -140,10 +156,20 @@ import AVFoundation
             let restored = AppModel(store: store)
             precondition(restored.sessions.first?.messages.last?.quickReplies == reply.quickReplies)
             print("PASS: streamed concise reply and prepared actions persist through history reload")
+            let previousCount = model.session.messages.count
+            model.continueReply(messageID: reply.id, displayed: reply.quickReplies!.next)
+            for _ in 0..<300 { if !model.generating { break }; try await Task.sleep(nanoseconds: 10_000_000) }
+            precondition(model.session.messages.count == previousCount + 2 && model.session.messages[previousCount].text == "Yes, continue" && model.session.messages[previousCount - 1].id == reply.id)
+            print("PASS: continuation uses the selected prepared view and appends a new turn without replacing history")
+            model.prompt = "Keep my unsent draft"
+            model.continueReply(messageID: reply.id, displayed: reply.text)
+            precondition(!model.generating && model.prompt == "Keep my unsent draft" && model.session.messages.count == previousCount + 2)
+            print("PASS: continuation preserves unsent drafts and does not start a provider request")
+            model.prompt = ""
             model.newSession()
             model.receiveSpeechPartial(source: "You", text: "My own voice is context.")
-            precondition(model.pendingHeardQuestion.isEmpty && !model.generating && model.session.messages.isEmpty)
-            print("PASS: microphone speech is context and cannot automatically trigger a provider request")
+            precondition(model.pendingHeardQuestion.isEmpty && !model.generating && model.session.messages.isEmpty && model.partials["You"] == nil)
+            print("PASS: meeting callbacks ignore microphone words and cannot automatically trigger a provider request")
             model.receiveSpeechPartial(source: "Computer", text: "What is JSON?")
             precondition(model.pendingHeardQuestion == "What is JSON?" && !model.generating)
             model.ask()
@@ -190,6 +216,6 @@ import AVFoundation
             precondition(model.session.messages.first?.inputSource == nil && model.pendingHeardQuestion == "Unrelated old speech")
             print("PASS: a screenshot without typed text takes priority over unrelated pending speech")
         }
-        print("\(34 + modernChecks) profile regression checks passed with transport fixture.")
+        print("\(38 + modernChecks) profile regression checks passed with transport fixture.")
     }
 }

@@ -34,10 +34,11 @@ public sealed class Settings {
     public Dictionary<string,ModeContext> ModeContexts { get; set; } = [];
     public bool PersonalizationMigrated { get; set; }
     public bool ComputerFirstMigrated { get; set; }
+    public bool SonioxAudioConsent {get;set;}=false;
     public string SpeechCountry {get;set;}="MY";
-    [JsonIgnore] public string EffectiveSpeechHint=>"Malaysia: English, Bahasa Melayu and Mandarin Chinese; preserve code-switching and the original script. Do not translate. "+MixedLanguageHint;
-    [JsonIgnore] public string SpeechDisplayName=>SpeechBackend=="whisper"?"Malaysia · EN / BM / 中文":Language;
-    public Settings CaptureSettings(bool mic)=>new(){Microphone=mic,ComputerAudio=!mic,SpeechBackend=SpeechBackend,Language=Language,SpeechCountry=SpeechCountry,LocalModelPath=LocalModelPath,SpeechWorkerPath=SpeechWorkerPath,MixedLanguageHint=MixedLanguageHint};
+    [JsonIgnore] public string EffectiveSpeechHint=>"English, 中文, Bahasa Melayu. "+(MixedLanguageHint.StartsWith("English, Bahasa Melayu, Mandarin Chinese.")?"":MixedLanguageHint);
+    [JsonIgnore] public string SpeechDisplayName=>SpeechBackend=="soniox"?"Soniox cloud · Malaysia":SpeechBackend=="whisper"?"Malaysia · EN / BM / 中文":Language;
+    public Settings CaptureSettings(bool mic)=>new(){Microphone=mic,ComputerAudio=!mic,SpeechBackend=SpeechBackend,Language=Language,SpeechCountry=SpeechCountry,SonioxAudioConsent=SonioxAudioConsent,LocalModelPath=LocalModelPath,SpeechWorkerPath=SpeechWorkerPath,MixedLanguageHint=MixedLanguageHint};
     public string SpeechBackend { get; set; } = "windows";
     public string LocalModelPath { get; set; } = "";
     public string SpeechWorkerPath { get; set; } = "";
@@ -50,13 +51,22 @@ public sealed class ModeContext { public string Instructions {get;set;}="";publi
 public static class Modes {
     public static readonly string[] Names=["General","Meeting","Interview","Behavioral Interview","Coding Interview","System Design","Case Interview","Recruiter Screen","Recruiting","Team Meet","Lecture","Coding","Study","Sales","Custom"];
     public static string Instruction(string mode)=>mode switch {
-        "Interview" or "Recruiter Screen"=>"Answer naturally using only the user's supplied real background; never invent credentials, experience or commitments.",
-        "Behavioral Interview"=>"Use the user's real situation, actions and results in a concise answer. Ask for missing facts instead of inventing them.",
-        "System Design"=>"Clarify requirements, propose an architecture and explain the main tradeoff. Label assumptions.",
-        "Case Interview"=>"Structure the case, separate facts and estimates, then make a concise recommendation.",
-        "Coding" or "Coding Interview"=>"Explain the approach and tradeoff. Give code and complexity when requested, without claiming unperformed tests.",
-        "Study" or "Lecture"=>"Explain the concept clearly, preserving terminology. Give a direct answer before expanding.",
-        _=>"Answer the actual question concisely. Do not invent personal facts, product claims or commitments."
+        "General" => "Give a useful, direct answer. Keep it concise unless more detail is requested.",
+        "Meeting" => "Help with the current discussion. Lead with a short direct answer that is easy to say aloud. Do not invent commitments or personal experience.",
+        "Coding" => "Explain the coding problem, propose an approach, and give correct readable code when useful. State assumptions and complexity.",
+        "Study" => "Teach the concept with clear explanations and small examples. Help the user understand the reasoning.",
+        "Sales" => "Help understand customer needs and clarify concerns. Suggest concrete follow-up questions without inventing product facts.",
+        "Interview" => "Help answer the interviewer's actual question concisely, using only the user's supplied background. Never invent qualifications, achievements or experience.",
+        "Behavioral Interview" => "Help give a natural behavioral interview answer grounded in the user's real background. Lead with what I personally did and the result; use a compact situation/action/result story when suitable; ask for missing facts instead of inventing them.",
+        "Coding Interview" => "Help reason through a coding interview: state the approach and key tradeoff concisely. Give correct code and complexity when requested. Do not claim unperformed tests.",
+        "System Design" => "Help with system design: state one critical requirement or assumption, then choose concrete components, a data flow and the main reliability/scaling tradeoff. State assumptions; avoid unsupported capacity claims.",
+        "Case Interview" => "Structure the case with explicit assumptions, a clear calculation or hypothesis and a concise recommendation. Separate evidence from estimates.",
+        "Recruiter Screen" => "Help introduce the user's real background and role goals naturally. Use supplied qualifications and experience only; do not invent availability, salary, work authorization or commitments.",
+        "Recruiting" => "Help structure recruiting discussions and job-related questions. Summarize relevant supplied experience; avoid unsupported personal inferences.",
+        "Team Meet" => "Help a team discussion with concise updates, decisions and blockers. Attribute ownership and deadlines only when actually stated.",
+        "Lecture" => "Explain the lecture concept clearly, preserving the teacher's terminology. Give a short direct answer first and expand only when asked.",
+        "Custom" => "Follow the user's custom instructions.",
+        _ => "Answer directly using only supplied facts."
     };
 }
 public static class Biography {

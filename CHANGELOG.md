@@ -4,6 +4,17 @@
 
 No pending changes.
 
+## [0.2.1]
+
+- Add optional Soniox STT v6 streaming with Malaysia English/Malay/Chinese hints, separate secure speech credentials and explicit audio-streaming consent. Default remains offline; no automatic cloud fallback.
+
+- Keep toolbar labels on one line with bounded mode/provider menus and an icon for History; use one capsule style for reply actions.
+- Scroll the floating assistant through the full session while keeping a new question at the top and preserving manual scrolling during streaming.
+- Add Yes, continue only in Next step: an explicit new AI request grounded in that suggestion; preserve unsent drafts and screenshots.
+- Show a distinct built-in behavior for every assistant mode; retain per-mode custom instructions and files.
+- Show verified installed/selected speech model states and reuse installed weights. Add an optional 547 MB large-v3-turbo quantized model for local multilingual speech, with no guaranteed Malaysian code-switching accuracy.
+- Use language names and optional user vocabulary instead of instruction-like text as the local speech prompt. Keep recognition local and preserve independent Listen/Mic routing.
+
 ## [0.2.0]
 
 ### Build 5 · independent audio controls

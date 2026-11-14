@@ -162,6 +162,8 @@ struct PreferencesView: View {
             Card { VStack(alignment: .leading, spacing: 14) {
                 Text("Assistant mode").font(.system(size: 16, weight: .medium))
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 145))], spacing: 8) { ForEach(AssistantMode.allCases) { mode in Button { model.config.mode = mode; model.session.mode = mode; model.saveConfig() } label: { Label(mode.rawValue, systemImage: mode.icon).font(.system(size: 12)).frame(maxWidth: .infinity, minHeight: 38).foregroundStyle(model.config.mode == mode ? Ink.mint : Ink.muted) }.buttonStyle(Press(primary: false)) } }
+                Text("Built-in behavior").font(.system(size: 11, weight: .semibold)).foregroundStyle(Ink.mint)
+                Text(model.config.mode.instruction).font(.system(size: 12)).foregroundStyle(Ink.muted).fixedSize(horizontal: false, vertical: true)
                 Text(model.config.mode.rawValue + " instructions").font(.system(size: 13, weight: .semibold)).foregroundStyle(Ink.mint)
                 Text("Only this mode uses the instructions, response language and files below. Switching modes saves the current edit.").font(.system(size: 11)).foregroundStyle(Ink.muted)
                 TextEditor(text: preferences.instruction).id(model.config.mode).font(.system(size: 13)).scrollContentBackground(.hidden).frame(height: 110).padding(10).background(Ink.background, in: RoundedRectangle(cornerRadius: 10))
@@ -208,6 +210,8 @@ struct PermissionRow: View {
     var body: some View { HStack(alignment: .top, spacing: 15) { Image(systemName: icon).font(.system(size: 21, weight: .light)).foregroundStyle(granted ? Ink.mint : Ink.muted).frame(width: 30).padding(.top, 3); VStack(alignment: .leading, spacing: 7) { Text(title).font(.system(size: 14, weight: .medium)); Text(detail).font(.system(size: 12)).foregroundStyle(Ink.muted).lineSpacing(3).fixedSize(horizontal: false, vertical: true) }; Spacer(minLength: 15); if granted { Image(systemName: "checkmark.circle.fill").foregroundStyle(Ink.mint).font(.system(size: 20)).accessibilityLabel("Allowed") } else { Button("Allow", action: action).buttonStyle(Press()) } }.padding(20).background(Ink.surface.opacity(0.8), in: RoundedRectangle(cornerRadius: 14)).overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(Ink.line)) }
 }
 struct AudioSettingsView: View {
+    @ViewState private var speechKey = ""
+    @ViewState private var speechKeyResult = ""
     @ObservedObject var model: AppModel
     @ObservedObject private var speechModels = SpeechModels.shared
     private var audioActive: Bool { model.recording || model.startingAudio || model.dictating || model.startingDictation }
@@ -226,26 +230,42 @@ struct AudioSettingsView: View {
                     VStack(alignment: .leading, spacing: 4) { Text("Mic · dictate your question").font(.system(size: 14, weight: .semibold)); Text(model.startingDictation ? "Starting…" : model.dictating ? "Typing your speech into the question box" : "Ready to dictate · Listen is not required").font(.system(size: 11)).foregroundStyle(Ink.muted) }
                     Spacer(); Button(model.dictating ? "Stop Mic" : "Start Mic") { model.toggleMicrophone() }.buttonStyle(Press(primary: model.dictating)).disabled(model.startingDictation)
                 }
-                Text("Nothing is sent to AI automatically. Review or edit the question, then press Enter.").font(.system(size: 11)).foregroundStyle(Ink.muted)
+                Text("No chat request is sent automatically. Review or edit the question, then press Enter.").font(.system(size: 11)).foregroundStyle(Ink.muted)
             } }
             if model.showLiveAudio { ListeningStatusView(model: model) }
             Card { VStack(alignment: .leading, spacing: 16) {
                 Text("Speech settings").font(.system(size: 16, weight: .medium))
-                Picker("Speech engine", selection: $model.config.speechBackend) { Text("Apple · one selected language").tag("apple"); Text("Local multilingual · mixed languages").tag("whisper") }.pickerStyle(.menu)
-                if model.config.speechBackend == "whisper" {
+                Picker("Speech engine", selection: $model.config.speechBackend) { Text("Apple · one selected language").tag("apple"); Text("Local multilingual · mixed languages").tag("whisper"); Text("Soniox cloud · mixed languages").tag("soniox") }.pickerStyle(.menu)
+                if model.config.speechBackend == "soniox" {
+                    Picker("Country", selection: $model.config.speechCountry) { Text("Malaysia · EN / BM / 中文").tag("MY") }.pickerStyle(.menu)
+                    Text("Soniox streams speech over the internet and supports English, Malay and Chinese. It uses a separate paid speech API key; your Gemini or other chat key is not used. No model download is needed.").font(.system(size: 12)).foregroundStyle(Ink.muted)
+                    SecureField(SecretStore.contains(SonioxProtocol.credentialID) ? "Speech key saved · paste to replace" : "Paste Soniox speech API key", text: $speechKey).velinField()
+                    HStack { Button("Save speech key") { do { if !speechKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { try SecretStore.write(speechKey.trimmingCharacters(in: .whitespacesAndNewlines), id: SonioxProtocol.credentialID); speechKey = "" }; speechKeyResult = "Speech key saved in Keychain."; model.saveConfig() } catch { speechKeyResult = error.localizedDescription } }.buttonStyle(Press()); Link("Get Soniox API key ↗", destination: URL(string: "https://console.soniox.com")!) }
+                    if !speechKeyResult.isEmpty { Text(speechKeyResult).font(.system(size: 11)).foregroundStyle(Ink.mint) }
+                    Toggle("Allow audio streaming to Soniox when I start Listen or Mic", isOn: $model.config.sonioxAudioConsent).toggleStyle(.switch).font(.system(size: 12))
+                    Text("Destination: stt-rt.soniox.com · Soniox STT v6. Only the audio control you start is streamed. Stopping it closes its connection. Provider processing, retention and usage charges apply. Nothing starts at launch.").font(.system(size: 11)).foregroundStyle(Ink.muted)
+                } else if model.config.speechBackend == "whisper" {
                     Picker("Country", selection: $model.config.speechCountry) { Text("Malaysia").tag("MY") }.pickerStyle(.menu)
                     Label("English + Bahasa Melayu + 中文", systemImage: "globe.asia.australia").font(.system(size: 13, weight: .medium)).foregroundStyle(Ink.mint)
                     Text("Malaysia’s mixed-language preset applies to Listen and Mic. Recognition stays on this device. Mixed sentences can still be wrong; review the words before asking.").font(.system(size: 11)).foregroundStyle(Ink.muted).lineSpacing(3)
                     TextField("Optional names or spelling hints", text: $model.config.mixedLanguageHint).velinField()
                     Text(model.config.localModelPath.isEmpty ? "Choose or download a multilingual model below." : "Selected model: " + URL(fileURLWithPath: model.config.localModelPath).lastPathComponent).font(.system(size: 11)).foregroundStyle(Ink.mint)
-                    HStack {
-                        Button("Download Base · 142 MB") { speechModels.fetch(small: false) { url in model.config.localModelPath = url.path; model.saveConfig() } }.buttonStyle(Press()).disabled(speechModels.downloading)
-                        Button("Small · 466 MB") { speechModels.fetch(small: true) { url in model.config.localModelPath = url.path; model.saveConfig() } }.buttonStyle(Press()).disabled(speechModels.downloading)
-                        Button("Choose .bin") { let panel = NSOpenPanel(); panel.allowedContentTypes = [.data]; if panel.runModal() == .OK, let url = panel.url { model.config.localModelPath = url.path; model.saveConfig() } }.buttonStyle(Press())
+                    Text("These are offline speech models, not AI chat providers. Download once, then select an installed model without downloading again.").font(.system(size: 11)).foregroundStyle(Ink.muted)
+                    ForEach(SpeechModelOption.all) { option in
+                        HStack(spacing: 12) {
+                            VStack(alignment: .leading, spacing: 4) { Text(option.name + " · " + option.size).font(.system(size: 12, weight: .semibold)); Text(option.detail).font(.system(size: 10)).foregroundStyle(Ink.muted) }
+                            Spacer()
+                            let installed = speechModels.installed.contains(option.id)
+                            let selected = installed && model.config.localModelPath == SpeechModels.destination(option).path
+                            Button(selected ? "Selected ✓" : installed ? "Use installed" : speechModels.downloadingID == option.id ? "Downloading…" : "Download") {
+                                speechModels.fetch(option) { url in model.config.localModelPath = url.path; model.saveConfig() }
+                            }.buttonStyle(Press(primary: selected)).disabled(selected || speechModels.downloading || speechModels.checking)
+                        }.padding(10).background(.white.opacity(0.025), in: RoundedRectangle(cornerRadius: 10))
                     }
+                    HStack { Button("Choose .bin") { let panel = NSOpenPanel(); panel.allowedContentTypes = [.data]; if panel.runModal() == .OK, let url = panel.url { model.config.localModelPath = url.path; model.saveConfig() } }.buttonStyle(Press()); if speechModels.checking { Text("Checking installed models…").font(.system(size: 10)).foregroundStyle(Ink.muted) } }
                     if speechModels.downloading { HStack { ProgressView(value: speechModels.progress); Button("Cancel download") { speechModels.cancel() }.buttonStyle(IconPress()) } }
                     if !speechModels.result.isEmpty { Text(speechModels.result).font(.system(size: 11)).foregroundStyle(Ink.muted) }
-                    Text("One-time model download. Base is lighter; Small uses more resources. Local multilingual speech arrives in short chunks rather than word by word.").font(.system(size: 10)).foregroundStyle(Ink.muted)
+                    Text("One-time model download. Turbo offers a larger multilingual model than Base, at higher memory cost. Malaysian slang and English/Chinese mixing still need your own testing; no accuracy guarantee. Speech arrives in short chunks.").font(.system(size: 10)).foregroundStyle(Ink.muted)
                 } else {
                     Picker("Language", selection: $model.config.language) { Text("English (US)").tag("en-US"); Text("English (UK)").tag("en-GB"); Text("English (Malaysia)").tag("en-MY"); Text("中文（普通话）").tag("zh-CN"); Text("中文（繁體）").tag("zh-TW"); Text("Bahasa Melayu (Malaysia)").tag("ms-MY"); Text("粵語（香港）").tag("zh-HK"); Text("Bahasa Indonesia").tag("id-ID"); Text("தமிழ் · Tamil").tag("ta-IN"); Text("日本語").tag("ja-JP"); Text("Español").tag("es-ES"); Text("Français").tag("fr-FR"); Text("Deutsch").tag("de-DE") }.pickerStyle(.menu)
                     Toggle("Keep Apple recognition on this device", isOn: $model.config.localSpeechOnly).toggleStyle(.switch)
@@ -255,7 +275,7 @@ struct AudioSettingsView: View {
             } }.disabled(audioActive)
             if audioActive { Text("Stop Listen and Mic to change the speech engine, country or model.").font(.system(size: 11)).foregroundStyle(Ink.mint) }
             permissions
-        }.padding(28) }.onAppear { model.refreshPermissions() }
+        }.padding(28) }.onAppear { model.refreshPermissions(); speechModels.refresh() }
     }
     var permissions: some View { VStack(spacing: 10) {
         PermissionRow(icon: "mic", title: "Microphone access", detail: "Needed only for Mic dictation into the question box.", granted: model.microphoneAllowed, action: model.requestMicrophone)
@@ -275,7 +295,7 @@ struct PrivacyView: View {
                 Button("Open local data folder") { model.revealData() }.buttonStyle(Press())
                 Divider()
                 Label("When you ask AI", systemImage: "arrow.up.forward.circle").font(.system(size: 16, weight: .medium)).foregroundStyle(Ink.lilac)
-                Text("Your question, recent conversation, transcript context, custom instructions, and attached documents go to your active provider. A screenshot is sent only when attached to that question. Screenshots are not saved to history. Provider processing and retention policies still apply.").font(.system(size: 13)).foregroundStyle(Ink.muted).lineSpacing(5)
+                Text("Your question, recent conversation, transcript context, custom instructions, and attached documents go to your active chat provider. If you explicitly select and enable Soniox cloud speech, started Listen/Mic audio streams to Soniox separately; offline speech does not upload audio. A screenshot is sent only when attached to that question. Screenshots are not saved to history. Provider processing and retention policies still apply.").font(.system(size: 13)).foregroundStyle(Ink.muted).lineSpacing(5)
                 Text("Current destination: \(model.endpointHost)").font(.system(size: 11, weight: .medium)).foregroundStyle(Ink.mint)
             } }
             Card { VStack(alignment: .leading, spacing: 16) {

@@ -1,3 +1,13 @@
+# v0.2.1 verification
+
+Mac standard suite: 136 checks (91 core/transport/geometry, 5 release and 40 profile/audio checks). Windows shared-core: 78 checks. The native cloud client is exercised against an actual loopback WebSocket server with a fake key, text configuration, converted PCM frames and synthetic mixed-script partial/final tokens; no cloud API or private audio is used. Tests also verify continuation appends to history and protects unsent drafts, distinct mode policies, and model hash corruption rejection. Three signed credential isolation checks pass separately. Native Mac UI checks confirmed one-line Behavioral Interview/Listen controls, single capsule reply styling, earlier turns accessible by scrolling upward while actions stay fixed, and installed Base displayed as a disabled Selected action. Cloud settings show a separate key and default-off consent; no live cloud request was made.
+
+Base and Turbo were compared using synthetic Mandarin joined to a public English fixture. Both could omit the English portion with no hint or an overly specific prompt. A simple English/Chinese/Malay language-name hint retained both scripts in the Turbo spot check. This is a synthetic probe, not evidence of reliable Malaysian slang recognition or an accuracy benchmark. The cloud path follows current Soniox documentation but has not been tested against a live Soniox account/key, real call, or Windows device.
+
+The user published v0.2.0; GitHub asset SHA256 digests match the preserved local DMG/EXE. This update is a separate v0.2.1 preparation and does not replace those assets.
+
+---
+
 # v0.2.0 build 5 · independent audio controls
 
 Version stays 0.2.0 at the user's request; only the internal build advances to 5. Listen always starts a computer-only capture instance. Mic starts a separate microphone-only instance and sends recognition into the editable question field, with no dependency on Listen, no meeting-transcript entry, and no lower mic row. Stopping either instance leaves the other running. The question composer replaces partial revisions, protects manual edits for the current segment, and consumes submitted text so late finalization cannot recreate a sent question.

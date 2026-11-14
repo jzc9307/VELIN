@@ -12,13 +12,13 @@ internal sealed class AudioCapture : IDisposable
     public event Action<string, string, bool>? Text;
     public event Action<string>? Warning;
     public event Action<string, float>? Level;
-    public bool IsRunning => channels.Count > 0;
+    public bool IsRunning => channels.Any(c=>c.IsRunning);
     public void Start(Settings config)
     {
         var microphone = config.Microphone; var computer = config.ComputerAudio; var language = config.Language;
         Stop(); if (!microphone && !computer) throw new InvalidOperationException("Enable microphone or computer audio in Audio settings.");
-        var engine = config.SpeechBackend == "whisper" ? null : SpeechRecognitionEngine.InstalledRecognizers().FirstOrDefault(r => r.Culture.Name.Equals(language, StringComparison.OrdinalIgnoreCase));
-        if (config.SpeechBackend != "whisper" && engine == null) throw new InvalidOperationException("Install the Windows speech language " + language + " in Settings → Time & language → Speech, then restart VELIN. This preview uses installed local speech engines.");
+        var engine = config.SpeechBackend != "windows" ? null : SpeechRecognitionEngine.InstalledRecognizers().FirstOrDefault(r => r.Culture.Name.Equals(language, StringComparison.OrdinalIgnoreCase));
+        if (config.SpeechBackend == "windows" && engine == null) throw new InvalidOperationException("Install the Windows speech language " + language + " in Settings → Time & language → Speech, then restart VELIN. This preview uses installed local speech engines.");
         foreach (var source in new[] { "You", "Computer" })
         {
             if (source == "You" && !microphone || source == "Computer" && !computer) continue;
@@ -32,7 +32,7 @@ internal sealed class AudioCapture : IDisposable
         var language = config.Language;
         var existing = channels.FirstOrDefault(c => c.Source == "You"); if (!enabled) { if (existing != null) { existing.Dispose(); channels.Remove(existing); } return; }
         if (existing != null) return;
-        var recognizer = config.SpeechBackend == "whisper" ? null : SpeechRecognitionEngine.InstalledRecognizers().FirstOrDefault(r => r.Culture.Name.Equals(language, StringComparison.OrdinalIgnoreCase)); if (config.SpeechBackend != "whisper" && recognizer == null) throw new InvalidOperationException("Install the selected local Windows Speech language first.");
+        var recognizer = config.SpeechBackend != "windows" ? null : SpeechRecognitionEngine.InstalledRecognizers().FirstOrDefault(r => r.Culture.Name.Equals(language, StringComparison.OrdinalIgnoreCase)); if (config.SpeechBackend != "whisper" && recognizer == null) throw new InvalidOperationException("Install the selected local Windows Speech language first.");
         var channel = new Channel("You", recognizer?.Id ?? "", config, (s, t, f) => Text?.Invoke(s, t, f), w => Warning?.Invoke(w), (s, v) => Level?.Invoke(s, v)); channel.Start(); channels.Add(channel);
     }
     public void Stop() { foreach (var channel in channels) channel.Dispose(); channels.Clear(); }
@@ -44,6 +44,8 @@ internal sealed class AudioCapture : IDisposable
         readonly IWaveIn capture = null!;
         readonly SpeechRecognitionEngine recognizer = null!;
         readonly LocalSpeechWorker? local;
+        readonly CloudSpeechClient? cloud;
+        public bool IsRunning=>!disposed;
         readonly PcmStream speech = new();
         readonly BufferedWaveProvider input;
         readonly MediaFoundationResampler converter = null!;
@@ -59,7 +61,12 @@ internal sealed class AudioCapture : IDisposable
                 capture = source == "Computer" ? new WasapiLoopbackCapture() : new WaveInEvent { WaveFormat = new WaveFormat(16000, 16, 1), BufferMilliseconds = 100 };
                 input = new BufferedWaveProvider(capture.WaveFormat) { ReadFully = false, BufferDuration = TimeSpan.FromSeconds(4), DiscardOnBufferOverflow = false };
                 converter = new MediaFoundationResampler(input, new WaveFormat(16000, 16, 1)) { ResamplerQuality = 60 };
-                if (config.SpeechBackend == "whisper")
+                if (config.SpeechBackend == "soniox")
+                {
+                    if(!config.SonioxAudioConsent)throw new IOException("Allow Soniox streaming in Speech settings before using the cloud engine.");
+                    cloud=new CloudSpeechClient(CredentialStore.Read(SonioxProtocol.CredentialId),(text,final)=>output(source,text,final),message=>{Dispose();warning(message);});
+                }
+                else if (config.SpeechBackend == "whisper")
                 {
                     var path = config.SpeechWorkerPath.Length > 0 ? config.SpeechWorkerPath : LocalSpeechWorker.BundledExecutable();
                     local = new LocalSpeechWorker(path, config.LocalModelPath, config.EffectiveSpeechHint, text => output(source, text, true), warning);
@@ -78,7 +85,7 @@ internal sealed class AudioCapture : IDisposable
             }
             catch { Dispose(); throw; }
         }
-        public void Start() { try { if (local == null) recognizer.RecognizeAsync(RecognizeMode.Multiple); capture.StartRecording(); } catch { Dispose(); throw; } }
+        public void Start() { try { if (local == null && cloud == null) recognizer.RecognizeAsync(RecognizeMode.Multiple); capture.StartRecording(); } catch { Dispose(); throw; } }
         void OnData(object? sender, WaveInEventArgs e)
         {
             lock (gate)
@@ -93,6 +100,7 @@ internal sealed class AudioCapture : IDisposable
                         var count = converter.Read(buffer, 0, buffer.Length); if (count <= 0) break;
                         double sum = 0; for (var i = 0; i + 1 < count; i += 2) { var v = BitConverter.ToInt16(buffer, i) / 32768.0; sum += v * v; }
                         meter(source, (float)Math.Min(1, Math.Sqrt(sum / Math.Max(1, count / 2)) * 8));
+                        if (cloud != null) { cloud.Feed(buffer,count); continue; }
                         if (local != null) { local.Feed(buffer, count); continue; }
                         if (!speech.Feed(buffer.AsSpan(0, count).ToArray())) throw new IOException("Speech processing could not keep up; stop and restart Listen.");
                     }
@@ -106,7 +114,7 @@ internal sealed class AudioCapture : IDisposable
             try { capture.StopRecording(); } catch { }
             speech.Complete();
             try { recognizer.RecognizeAsyncCancel(); } catch { }
-            local?.Dispose(); recognizer?.Dispose(); capture?.Dispose(); converter?.Dispose(); speech.Dispose();
+            local?.Dispose(); cloud?.Dispose(); recognizer?.Dispose(); capture?.Dispose(); converter?.Dispose(); speech.Dispose();
         }
     }
     sealed class PcmStream : Stream

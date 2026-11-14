@@ -59,15 +59,23 @@ Choose an actual published asset below, or upload the prepared local files throu
 <!-- VERSIONS:START -->
 | Version | Status | macOS · Apple Silicon | Windows · x64 |
 | --- | --- | --- | --- |
-| 0.2.0 | Newest · prepared | [DMG](https://github.com/jzc9307/VELIN/releases/tag/v0.2.0) | [EXE](https://github.com/jzc9307/VELIN/releases/tag/v0.2.0) |
-| 0.1.2 | Latest | [DMG](https://github.com/jzc9307/VELIN/releases/download/v0.1.2/VELIN-0.1.2-macOS-arm64.dmg) | [EXE · preview](https://github.com/jzc9307/VELIN/releases/download/v0.1.2/VELIN-0.1.2-Windows-x64.exe) |
+| 0.2.1 | Newest · prepared | Not published | Preview · not published |
+| 0.2.0 | Latest | [DMG](https://github.com/jzc9307/VELIN/releases/download/v0.2.0/VELIN-0.2.0-macOS-arm64.dmg) | [EXE · preview](https://github.com/jzc9307/VELIN/releases/download/v0.2.0/VELIN-0.2.0-Windows-x64.exe) |
+| 0.1.2 | Published | [DMG](https://github.com/jzc9307/VELIN/releases/download/v0.1.2/VELIN-0.1.2-macOS-arm64.dmg) | [EXE · preview](https://github.com/jzc9307/VELIN/releases/download/v0.1.2/VELIN-0.1.2-Windows-x64.exe) |
 | 0.1.1 | Published | [DMG](https://github.com/jzc9307/VELIN/releases/download/v0.1.1/VELIN-0.1.1-macOS-arm64.dmg) | Not available |
 | 0.1.0 | Local · archived | Not published | Not available |
 <!-- VERSIONS:END -->
 
 Every published version keeps its own macOS and available Windows links. Newest prepared versions have no invented public download URL. See [release history](docs/RELEASES.md) and [changelog](CHANGELOG.md).
 
-## New in v0.2.0
+## New in v0.2.1
+
+- Scroll up through the full floating conversation; current reply actions stay at the bottom.
+- In **Next step**, use **Yes, continue** to generate the detail it offers.
+- Choose optional Soniox cloud speech for mixed-language recognition with your own speech API key. Audio goes to Soniox only from controls you explicitly start after enabling it; usage is billed by Soniox.
+- Download offline models once, then switch between verified installed models. Turbo is a larger option, not a guarantee of accurate Malaysian slang.
+
+## Added in v0.2.0
 
 - **Computer audio first.** Listen transcribes the interviewer from computer audio; Mic independently dictates into your question box.
 - **Local multilingual speech.** An optional model handles Malay, Mandarin and English, including the **Country → Malaysia** mixed-language preset. [Setup and honest limits](docs/LANGUAGES.md).
@@ -115,7 +123,7 @@ The feature tour above describes the native Mac app. Windows includes the core w
 - **Keys:** stored in macOS Keychain or Windows Credential Manager, never in source, settings JSON, or an `.env` file.
 - **Sessions:** stored locally in `~/Library/Application Support/VELIN` with owner-only file permissions on Mac, or `%LOCALAPPDATA%\VELIN` under your Windows account. VELIN does not add a separate encryption password.
 - **AI requests:** relevant transcript, chat, personal instructions and attached context go to your selected provider when you ask or generate notes. The provider’s processing and retention rules apply.
-- **Audio:** captured only after Listen; no audio recording files are retained. Computer audio can contain multiple apps/people and is labeled by source, not individual speaker.
+- **Audio:** captured only after Listen or Mic; no audio recording files are retained. Apple/local Whisper remain available. Optional Soniox cloud speech streams started audio controls to Soniox with separate consent and a separate API key. Computer audio can contain multiple apps/people and is labeled by source, not individual speaker.
 - **Capture exclusion:** a best-effort legacy macOS hint. **No guarantee of invisibility in every screen-sharing app.** See [Apple’s sharing-type documentation](https://developer.apple.com/documentation/appkit/nswindow/sharingtype-swift.enum/none).
 - **Availability:** provider models, credits and service capacity affect responses. There is no promise of zero initial AI latency. Speech language availability depends on macOS and its installed assets.
 

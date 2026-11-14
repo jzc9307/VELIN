@@ -15,6 +15,8 @@ final class VelinHostingView<Content: View>: NSHostingView<Content> {
         if let scroll = view as? NSScrollView {
             if scroll.hasVerticalScroller { scroll.hasVerticalScroller = false }
             if scroll.hasHorizontalScroller { scroll.hasHorizontalScroller = false }
+            if scroll.drawsBackground { scroll.drawsBackground = false }
+            if scroll.contentView.drawsBackground { scroll.contentView.drawsBackground = false }
             scroll.autohidesScrollers = true
         }
         for child in view.subviews { suppressScrollers(in: child) }
@@ -59,7 +61,7 @@ struct OverlayView: View {
                 }.buttonStyle(IconPress()).help(model.generating ? "Stop response" : "Ask VELIN")
             }.padding(.horizontal, 18).padding(.top, 15).padding(.bottom, 13)
             Rectangle().fill(Ink.line).frame(height: 1)
-            HStack(spacing: 7) {
+            HStack(spacing: 4) {
                 VelinMark().frame(width: 21, height: 21).help("Drag here to move VELIN")
                 Button { model.capture() } label: { Image(systemName: model.pendingImage == nil ? "photo" : "photo.fill").font(.system(size: 14)).foregroundStyle(model.pendingImage == nil ? Ink.muted : Ink.mint) }.buttonStyle(IconPress()).help("Attach screenshot · ⌃⌥S").disabled(model.generating)
                 Button { model.toggleHiddenMode() } label: {
@@ -70,18 +72,18 @@ struct OverlayView: View {
                     .accessibilityLabel(model.config.captureProtection ? "Hidden mode requested" : "Enable hidden mode")
                     .accessibilityValue(model.config.captureProtection ? "On" : "Off")
                     .help("Hidden mode hides the Dock and menu-bar icons and requests capture exclusion. Use ⌃⌥Space to reopen the bar; click the eye again to restore the icons.")
-                Button { model.toggleListening() } label: { HStack(spacing: 5) { Image(systemName: "waveform").font(.system(size: 14)); Text(model.startingAudio ? "Starting…" : model.recording ? clockText(model.elapsed) : "Listen").font(.system(size: 11, weight: .medium)).monospacedDigit() }.foregroundStyle(model.recording ? Ink.mint : Ink.muted) }.buttonStyle(IconPress()).disabled(model.startingAudio).help("Start / stop listening · ⌃⌥L")
+                Button { model.toggleListening() } label: { HStack(spacing: 5) { Image(systemName: "waveform").font(.system(size: 14)); Text(model.startingAudio ? "Starting…" : model.recording ? clockText(model.elapsed) : "Listen").font(.system(size: 11, weight: .medium)).monospacedDigit() }.lineLimit(1).fixedSize().foregroundStyle(model.recording ? Ink.mint : Ink.muted) }.buttonStyle(IconPress()).disabled(model.startingAudio).help("Start / stop listening · ⌃⌥L")
                 Button { model.toggleMicrophone() } label: { Image(systemName: model.startingDictation ? "ellipsis" : model.dictating ? "mic.fill" : "mic").font(.system(size: 13)).foregroundStyle(model.dictating ? Ink.mint : Ink.muted) }.buttonStyle(IconPress()).disabled(model.startingDictation).help(model.dictating ? "Stop mic dictation" : "Mic: dictate into your question").accessibilityLabel(model.dictating ? "Stop mic dictation" : model.startingDictation ? "Starting mic dictation" : "Start mic dictation")
-                Menu { ForEach(AssistantMode.allCases) { mode in Button(mode.rawValue) { model.config.mode = mode; model.session.mode = mode; model.saveConfig() } } } label: { OverlayMenuLabel(title: model.config.mode.rawValue, icon: "square.grid.2x2") }.menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize().modifier(OverlayMenuChrome())
-                Menu { ForEach(model.config.profiles) { profile in Button("\(profile.name) · \(profile.provider.rawValue)") { model.config.activeProfileID = profile.id; model.saveConfig() } }; Divider(); Button("AI Connections…") { model.page = "AI Connections"; model.openMain() } } label: { OverlayMenuLabel(title: model.activeProfile?.provider.rawValue ?? "Connect AI", icon: "circle.hexagongrid") }.menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize().modifier(OverlayMenuChrome())
+                Menu { ForEach(AssistantMode.allCases) { mode in Button(mode.rawValue) { model.config.mode = mode; model.session.mode = mode; model.saveConfig() } } } label: { OverlayMenuLabel(title: model.config.mode.rawValue, width: 112, icon: "square.grid.2x2") }.menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize().modifier(OverlayMenuChrome())
+                Menu { ForEach(model.config.profiles) { profile in Button("\(profile.name) · \(profile.provider.rawValue)") { model.config.activeProfileID = profile.id; model.saveConfig() } }; Divider(); Button("AI Connections…") { model.page = "AI Connections"; model.openMain() } } label: { OverlayMenuLabel(title: model.activeProfile?.provider.rawValue ?? "Connect AI", width: 84, icon: "circle.hexagongrid") }.menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize().modifier(OverlayMenuChrome())
                 Spacer(minLength: 0)
-                Button("History") { model.page = "History"; model.openMain() }.font(.system(size: 10, weight: .medium)).buttonStyle(IconPress()).help("Open session history")
+                Button { model.page = "History"; model.openMain() } label: { Image(systemName: "clock.arrow.circlepath").font(.system(size: 12)) }.accessibilityLabel("History").buttonStyle(IconPress()).help("Open session history")
                 Button { model.page = "AI Connections"; model.openMain() } label: { Image(systemName: "gearshape").font(.system(size: 12)) }.buttonStyle(IconPress()).help("AI settings")
                 if latestAnswer != nil || model.generating {
                     Button { model.overlayExpanded.toggle() } label: { Image(systemName: model.overlayExpanded ? "chevron.up" : "chevron.down").font(.system(size: 12)) }.buttonStyle(IconPress()).help(model.overlayExpanded ? "Collapse answer" : "Show latest answer")
                 }
                 Button(action: close) { Image(systemName: "xmark").font(.system(size: 11)) }.buttonStyle(IconPress()).help("Hide assistant · ⌃⌥Space")
-            }.foregroundStyle(Ink.muted).padding(.horizontal, 18).frame(height: 42)
+            }.foregroundStyle(Ink.muted).padding(.horizontal, 12).frame(height: 42)
             }.frame(height: 110, alignment: .top).background(Ink.background.opacity(model.config.overlayOpacity))
             if sectionState[0] { ListeningStatusView(model: model, compact: true).frame(height: model.audioWarning.isEmpty ? 148 : 176, alignment: .top).background(Ink.background.opacity(model.config.overlayOpacity)).transition(.opacity) }
             if let image = model.pendingImage, let nsImage = NSImage(data: image) {
@@ -94,18 +96,8 @@ struct OverlayView: View {
             }
             if model.overlayExpanded {
                 Rectangle().fill(Ink.line).frame(height: 1)
-                VStack(alignment: .leading, spacing: 15) {
-                    if let question = latestQuestion {
-                        HStack {
-                            Spacer(minLength: 36)
-                            Text(question.text).font(.system(size: 12, weight: .medium)).lineLimit(2)
-                                .textSelection(.enabled).padding(.horizontal, 13).padding(.vertical, 9)
-                                .background(.white.opacity(0.09), in: RoundedRectangle(cornerRadius: 14))
-                        }.accessibilityLabel("Your question: " + question.text)
-                    }
-                    if let answer = latestAnswer { AssistantReplyView(message: answer, streaming: model.generating && !model.generatingNotes) }
-                    else { Text("Ask a question to begin.").foregroundStyle(Ink.muted) }
-                }.padding(20).frame(maxWidth: .infinity, maxHeight: .infinity)
+                OverlayConversationView(model: model)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .background(Ink.background.opacity(max(0.68, model.config.overlayOpacity - 0.17)))
                     .transition(.opacity)
             }
@@ -142,13 +134,14 @@ private struct OverlayMenuChrome: ViewModifier {
 
 private struct OverlayMenuLabel: View {
     let title: String
+    var width: CGFloat = 112
     let icon: String
     var body: some View {
         HStack(alignment: .center, spacing: 5) {
             Image(systemName: icon).font(.system(size: 12)).frame(width: 14)
-            Text(title).font(.system(size: 11, weight: .medium)).lineLimit(1)
+            Text(title).font(.system(size: 11, weight: .medium)).lineLimit(1).truncationMode(.tail)
             Image(systemName: "chevron.down").font(.system(size: 8, weight: .semibold)).frame(width: 9)
-        }.frame(height: 30).padding(.horizontal, 3).contentShape(RoundedRectangle(cornerRadius: 8))
+        }.frame(width: width, height: 30).padding(.horizontal, 3).contentShape(RoundedRectangle(cornerRadius: 8))
     }
 }
 

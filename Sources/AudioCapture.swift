@@ -233,7 +233,7 @@ final class AudioCapture: NSObject, SCStreamOutput, SCStreamDelegate, @unchecked
 
     @MainActor func start(config: Configuration) async throws {
         guard config.microphone || config.systemAudio else { throw VelinError.message("Enable microphone or computer audio in Audio settings.") }
-        guard config.speechBackend == "whisper" || SFSpeechRecognizer.authorizationStatus() == .authorized else { throw VelinError.message("Allow Speech Recognition in Setup before listening.") }
+        guard config.speechBackend != "apple" || SFSpeechRecognizer.authorizationStatus() == .authorized else { throw VelinError.message("Allow Speech Recognition in Setup before listening.") }
         captureGeneration = UUID(); receivedInputs = []; inputWarnings = [:]; warning(""); level(0); computerLevel(0)
         var issues: [String] = []
         sourceState("You", config.microphone ? "Starting…" : "Off")
@@ -289,7 +289,7 @@ final class AudioCapture: NSObject, SCStreamOutput, SCStreamDelegate, @unchecked
                 }
             }
         }
-        guard captureGeneration == token else {
+        guard captureGeneration == token, microphone != nil else {
             prepared.0.stop(); prepared.0.inputNode.removeTap(onBus: 0)
             throw CancellationError()
         }
@@ -297,8 +297,10 @@ final class AudioCapture: NSObject, SCStreamOutput, SCStreamDelegate, @unchecked
     }
     @MainActor private func startComputer(_ config: Configuration) async throws {
         guard CGPreflightScreenCaptureAccess() else { throw VelinError.message("Allow Screen & System Audio Recording in Audio & Permissions, then reopen VELIN if macOS asks.") }
+        let token = captureGeneration
         let channel = try await channel("Computer", config); computer = channel; try await channel.begin()
         let content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
+        guard captureGeneration == token, computer != nil else { throw CancellationError() }
         guard let display = content.displays.first else { throw VelinError.message("No display is available for system audio.") }
         let filter = SCContentFilter(display: display, excludingApplications: content.applications.filter { $0.processID == ProcessInfo.processInfo.processIdentifier }, exceptingWindows: [])
         let cfg = SCStreamConfiguration(); cfg.width = 2; cfg.height = 2
@@ -307,6 +309,7 @@ final class AudioCapture: NSObject, SCStreamOutput, SCStreamDelegate, @unchecked
         let stream = SCStream(filter: filter, configuration: cfg, delegate: self); self.stream = stream
         try stream.addStreamOutput(self, type: .audio, sampleHandlerQueue: .main)
         try await stream.startCapture()
+        guard captureGeneration == token, computer != nil else { try? await stream.stopCapture(); throw CancellationError() }
     }
     private static func inputDeviceName(_ input: AVAudioInputNode) -> String {
         guard let unit = input.audioUnit else { return "macOS default input" }
@@ -351,7 +354,12 @@ final class AudioCapture: NSObject, SCStreamOutput, SCStreamDelegate, @unchecked
     }
     @MainActor private func channel(_ source: String, _ config: Configuration) async throws -> any SpeechInput {
         let channel: any SpeechInput
-        if config.speechBackend == "whisper" {
+        if config.speechBackend == "soniox" {
+            guard config.sonioxAudioConsent else { throw VelinError.message("Allow Soniox audio streaming in Speech settings before using the cloud engine.") }
+            let key = SecretStore.read(SonioxProtocol.credentialID)
+            guard !key.isEmpty else { throw VelinError.message("Save your Soniox speech API key in Audio & Permissions first.") }
+            channel = SonioxSpeechChannel(source: source, key: key)
+        } else if config.speechBackend == "whisper" {
             sourceState(source, "Loading local multilingual model…")
             channel = MultilingualSpeechChannel(source: source, modelPath: config.localModelPath, hint: config.effectiveSpeechHint)
         } else {

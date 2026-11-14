@@ -27,6 +27,43 @@ enum Provider: String, Codable, CaseIterable, Identifiable {
     }
 }
 
+struct SpeechModelOption: Identifiable {
+    let id: String, name: String, size: String, sha: String, detail: String
+    var fileName: String { "ggml-" + id + ".bin" }
+    static let all: [Self] = [
+        .init(id: "base", name: "Base", size: "142 MB", sha: "465707469ff3a37a2b9b8d8f89f2f99de7299dac", detail: "Lightweight · limited mixed-language accuracy"),
+        .init(id: "small", name: "Small", size: "466 MB", sha: "55356645c2b361a969dfd0ef2c5a50d530afd8d5", detail: "More capacity than Base"),
+        .init(id: "large-v3-turbo-q5_0", name: "Turbo", size: "547 MB", sha: "e050f7970618a659205450ad97eb95a18d69c9ee", detail: "Larger multilingual model · try for mixed speech; uses more memory")
+    ]
+}
+
+enum SonioxProtocol {
+    static let credentialID = UUID(uuidString: "A883C4F8-5FC1-4841-9918-997F039BF56B")!
+    static let endpoint = URL(string: "wss://stt-rt.soniox.com/transcribe-websocket")!
+    static let configuration: [String: Any] = ["model": "stt-rt-v6", "audio_format": "pcm_s16le", "sample_rate": 16000, "num_channels": 1, "language_hints": ["en", "ms", "zh"], "language_hints_strict": false, "enable_endpoint_detection": true, "max_endpoint_delay_ms": 1000]
+}
+/// Final tokens arrive once; provisional tokens replace the previous preview.
+struct SonioxTranscript {
+    private(set) var confirmed = ""
+    private(set) var preview = ""
+    mutating func accept(_ response: [String: Any]) throws -> [String] {
+        if let code = response["error_code"] as? Int { throw VelinError.message("Soniox could not transcribe (HTTP \(code)). Check the speech API key, credits and service availability.") }
+        var completed: [String] = [], tentative = ""
+        for token in response["tokens"] as? [[String: Any]] ?? [] {
+            guard let text = token["text"] as? String else { continue }
+            if text == "<end>" || text == "<fin>" {
+                if token["is_final"] as? Bool == true { if !confirmed.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { completed.append(confirmed) }; confirmed = "" }
+            } else if !text.hasPrefix("<") {
+                if token["is_final"] as? Bool == true { confirmed += text } else { tentative += text }
+            }
+        }
+        if response["finished"] as? Bool == true { if !confirmed.isEmpty { completed.append(confirmed) }; confirmed = ""; tentative = "" }
+        guard confirmed.count + tentative.count <= 12000 else { throw VelinError.message("Soniox returned an unusually long unfinished segment. Restart this audio control.") }
+        preview = confirmed + tentative
+        return completed
+    }
+}
+
 struct AIProfile: Identifiable, Codable, Equatable {
     var id = UUID()
     var name = "Personal connection"
@@ -51,9 +88,9 @@ enum AssistantMode: String, Codable, CaseIterable, Identifiable {
         case .study: return "Teach the concept with clear explanations and small examples. Help the user understand the reasoning."
         case .sales: return "Help understand customer needs and clarify concerns. Suggest concrete follow-up questions without inventing product facts."
         case .interview: return "Help answer the interviewer's actual question concisely, using only the user's supplied background. Never invent qualifications, achievements or experience."
-        case .behavioralInterview: return "Help give a natural behavioral interview answer grounded in the user's real background. Use a compact situation/action/result structure when suitable; ask for missing facts instead of inventing them."
+        case .behavioralInterview: return "Help give a natural behavioral interview answer grounded in the user's real background. Lead with what I personally did and the result; use a compact situation/action/result story when suitable; ask for missing facts instead of inventing them."
         case .codingInterview: return "Help reason through a coding interview: state the approach and key tradeoff concisely. Give correct code and complexity when requested. Do not claim unperformed tests."
-        case .systemDesign: return "Help with system design: clarify scale and requirements, then explain a concrete architecture and its main tradeoff. State assumptions; avoid unsupported capacity claims."
+        case .systemDesign: return "Help with system design: state one critical requirement or assumption, then choose concrete components, a data flow and the main reliability/scaling tradeoff. State assumptions; avoid unsupported capacity claims."
         case .caseInterview: return "Structure the case with explicit assumptions, a clear calculation or hypothesis and a concise recommendation. Separate evidence from estimates."
         case .recruiterScreen: return "Help introduce the user's real background and role goals naturally. Use supplied qualifications and experience only; do not invent availability, salary, work authorization or commitments."
         case .recruiting: return "Help structure recruiting discussions and job-related questions. Summarize relevant supplied experience; avoid unsupported personal inferences."
@@ -260,8 +297,9 @@ struct Configuration: Codable {
     var localModelPath = ""
     var mixedLanguageHint = "English, Bahasa Melayu, Mandarin Chinese. Preserve the spoken language; do not translate."
     var computerFirstMigrated = false
+    var sonioxAudioConsent = false
     var speechCountry = "MY"
-    enum CodingKeys: String, CodingKey { case profiles, activeProfileID, customInstruction, mode, language, outputLanguage, microphone, systemAudio, localSpeechOnly, captureProtection, overlayOpacity, onboardingCompleted, contextFiles, aboutMe, modePreferences, speechBackend, localModelPath, mixedLanguageHint, computerFirstMigrated, speechCountry }
+    enum CodingKeys: String, CodingKey { case profiles, activeProfileID, customInstruction, mode, language, outputLanguage, microphone, systemAudio, localSpeechOnly, captureProtection, overlayOpacity, onboardingCompleted, contextFiles, aboutMe, modePreferences, speechBackend, localModelPath, mixedLanguageHint, computerFirstMigrated, speechCountry, sonioxAudioConsent }
     init() {}
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -284,6 +322,7 @@ struct Configuration: Codable {
         localModelPath = try c.decodeIfPresent(String.self, forKey: .localModelPath) ?? ""
         mixedLanguageHint = try c.decodeIfPresent(String.self, forKey: .mixedLanguageHint) ?? mixedLanguageHint
         computerFirstMigrated = try c.decodeIfPresent(Bool.self, forKey: .computerFirstMigrated) ?? false
+        sonioxAudioConsent = try c.decodeIfPresent(Bool.self, forKey: .sonioxAudioConsent) ?? false
         speechCountry = try c.decodeIfPresent(String.self, forKey: .speechCountry) ?? "MY"
         if modePreferences.isEmpty {
             modePreferences[mode.rawValue] = ModePreferences(instruction: customInstruction, outputLanguage: outputLanguage, files: contextFiles)
@@ -293,8 +332,8 @@ struct Configuration: Codable {
         get { modePreferences[mode.rawValue] ?? ModePreferences() }
         set { modePreferences[mode.rawValue] = newValue }
     }
-    var effectiveSpeechHint: String { "Malaysia: English, Bahasa Melayu and Mandarin Chinese; preserve code-switching and the original script. Do not translate. " + mixedLanguageHint }
-    var speechDisplayName: String { speechBackend == "whisper" ? "Malaysia · EN / BM / 中文" : (Locale.current.localizedString(forIdentifier: language) ?? language) }
+    var effectiveSpeechHint: String { "English, 中文, Bahasa Melayu. " + (mixedLanguageHint.hasPrefix("English, Bahasa Melayu, Mandarin Chinese.") ? "" : mixedLanguageHint) }
+    var speechDisplayName: String { speechBackend == "soniox" ? "Soniox cloud · Malaysia" : speechBackend == "whisper" ? "Malaysia · EN / BM / 中文" : (Locale.current.localizedString(forIdentifier: language) ?? language) }
     var selectedInstruction: String { activeModePreferences.instruction }
     var selectedFiles: [ContextFile] { activeModePreferences.files }
     var selectedOutputLanguage: String { activeModePreferences.outputLanguage }

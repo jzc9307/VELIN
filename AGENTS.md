@@ -54,3 +54,8 @@ About me is shared background; instructions/output language/files belong to each
 ## v0.2.0 build revisions
 
 The user explicitly kept the independent-dictation correction under v0.2.0. Advance the internal build number (build 5), not the semantic version, for this revision. Preserve earlier local packages before replacing the ready-to-upload folder. Never overwrite published assets. Local multilingual currently exposes Country → Malaysia (English/Bahasa Melayu/Mandarin) and passes the preset to recognition; native single-language status must stay distinct. Remove confusing source switches; show real runtime state. Protect typed edits and prevent late mic finals from replaying a submitted prompt. Always keep microphone dictation outside the lower Listen panel.
+
+
+## v0.2.1 cloud and conversation
+
+v0.2.0 is published; never overwrite its tag or assets. Continue with v0.2.1 build 6. Soniox is optional and default-off, with a dedicated UUID credential in the existing restricted store. No main-provider keys, biography, screenshots or documents enter speech requests. Stream only explicitly started controls after user-enabled consent; never silently switch or reconnect. Keep the fixed WSS destination, header authentication, redirect rejection and bounded PCM/token queues. Preserve offline engines and honest recognition limits. Downloaded models are weights, not subscriptions: verified installed weights are reused and selected actions disabled. Ready reply views remain local; Yes, continue is an explicitly labeled new AI request. Keep current actions fixed while the complete overlay conversation scrolls.

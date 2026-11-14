@@ -7,34 +7,49 @@ import Speech
 @MainActor final class SpeechModels: ObservableObject {
     static let shared = SpeechModels()
     @Published var downloading = false
+    @Published var checking = false
     @Published var progress = 0.0
     @Published var result = ""
+    @Published var installed: Set<String> = []
+    @Published var downloadingID: String?
     private var download: URLSessionDownloadTask?
     private var observation: NSKeyValueObservation?
-    static let baseSHA = "465707469ff3a37a2b9b8d8f89f2f99de7299dac"
-    static let smallSHA = "55356645c2b361a969dfd0ef2c5a50d530afd8d5"
-    func fetch(small: Bool, completion: @escaping (URL) -> Void) {
-        guard !downloading else { return }
-        let name = small ? "small" : "base", expected = small ? Self.smallSHA : Self.baseSHA
-        let url = URL(string: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-\(name).bin")!
-        downloading = true; progress = 0; result = "Downloading a multilingual model. No audio is uploaded."
+    static let baseSHA = SpeechModelOption.all[0].sha
+    static let smallSHA = SpeechModelOption.all[1].sha
+    static var folder: URL { SessionStore().root.appendingPathComponent("Models") }
+    static func destination(_ option: SpeechModelOption) -> URL { folder.appendingPathComponent(option.fileName) }
+    nonisolated static func verified(_ url: URL, sha: String) -> Bool {
+        guard let stream = InputStream(url: url) else { return false }
+        stream.open(); defer { stream.close() }
+        var digest = Insecure.SHA1(), bytes = [UInt8](repeating: 0, count: 1_048_576)
+        while true { let count = stream.read(&bytes, maxLength: bytes.count); if count < 0 { return false }; if count == 0 { break }; digest.update(data: Data(bytes.prefix(count))) }
+        return digest.finalize().map { String(format: "%02x", $0) }.joined() == sha
+    }
+    func refresh() {
+        guard !checking, !downloading else { return }; checking = true
+        let candidates = SpeechModelOption.all.map { ($0.id, Self.destination($0), $0.sha) }
+        Task {
+            let found = await Task.detached(priority: .utility) { Set(candidates.filter { Self.verified($0.1, sha: $0.2) }.map { $0.0 }) }.value
+            installed = found; checking = false
+        }
+    }
+    func fetch(_ option: SpeechModelOption, completion: @escaping (URL) -> Void) {
+        guard !downloading, !checking else { return }
+        let destination = Self.destination(option)
+        if installed.contains(option.id), FileManager.default.fileExists(atPath: destination.path) { result = option.name + " already installed. Selected without downloading."; completion(destination); return }
+        downloading = true; downloadingID = option.id; progress = 0; result = "Downloading " + option.name + ". No audio is uploaded."
+        let url = URL(string: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/" + option.fileName)!
         let task = URLSession.shared.downloadTask(with: url) { [weak self] temporary, response, error in
             do {
                 if let error { throw error }
                 guard let temporary, (response as? HTTPURLResponse)?.statusCode == 200 else { throw VelinError.message("The model download did not complete. Try again later.") }
-                guard let stream = InputStream(url: temporary) else { throw VelinError.message("The downloaded model could not be read.") }
-                stream.open(); defer { stream.close() }
-                var digest = Insecure.SHA1(), bytes = [UInt8](repeating: 0, count: 1_048_576)
-                while true { let count = stream.read(&bytes, maxLength: bytes.count); if count < 0 { throw stream.streamError ?? VelinError.message("Model validation failed.") }; if count == 0 { break }; digest.update(data: Data(bytes.prefix(count))) }
-                guard digest.finalize().map({ String(format: "%02x", $0) }).joined() == expected else { throw VelinError.message("Model integrity check failed. The downloaded file was not installed.") }
-                let folder = SessionStore().root.appendingPathComponent("Models")
-                try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
-                let destination = folder.appendingPathComponent("ggml-\(name).bin")
+                guard Self.verified(temporary, sha: option.sha) else { throw VelinError.message("Model integrity check failed. The downloaded file was not installed.") }
+                try FileManager.default.createDirectory(at: destination.deletingLastPathComponent(), withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
                 if FileManager.default.fileExists(atPath: destination.path) { _ = try FileManager.default.replaceItemAt(destination, withItemAt: temporary) }
                 else { try FileManager.default.moveItem(at: temporary, to: destination) }
                 try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: destination.path)
-                Task { @MainActor in self?.downloading = false; self?.observation = nil; self?.result = "Model ready. Choose Local multilingual, then start Listen."; completion(destination) }
-            } catch { let message = error.localizedDescription; Task { @MainActor in self?.downloading = false; self?.observation = nil; self?.result = message } }
+                Task { @MainActor in guard let self else { return }; self.downloading = false; self.downloadingID = nil; self.observation = nil; self.installed.insert(option.id); self.result = option.name + " installed and selected."; completion(destination) }
+            } catch { let message = error.localizedDescription; Task { @MainActor in self?.downloading = false; self?.downloadingID = nil; self?.observation = nil; self?.result = message } }
         }
         download = task
         observation = task.progress.observe(\.fractionCompleted, options: [.new]) { [weak self] progress, _ in let value = progress.fractionCompleted; Task { @MainActor in self?.progress = value } }
