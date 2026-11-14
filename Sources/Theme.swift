@@ -104,7 +104,7 @@ struct HideNativeScrollbars: NSViewRepresentable {
         override func viewDidMoveToWindow() { super.viewDidMoveToWindow(); refresh() }
         override func layout() { super.layout(); refresh() }
         func refresh() { DispatchQueue.main.async { [weak self] in guard let root = self?.window?.contentView else { return }; self?.hide(in: root) } }
-        private func hide(in view: NSView) { if let scroll = view as? NSScrollView { scroll.hasVerticalScroller = false; scroll.hasHorizontalScroller = false; scroll.autohidesScrollers = true }; for child in view.subviews { hide(in: child) } }
+        private func hide(in view: NSView) { if let scroll = view as? NSScrollView { if scroll.hasVerticalScroller { scroll.hasVerticalScroller = false }; if scroll.hasHorizontalScroller { scroll.hasHorizontalScroller = false }; if !scroll.autohidesScrollers { scroll.autohidesScrollers = true } }; for child in view.subviews { hide(in: child) } }
     }
     func makeNSView(context: Context) -> Probe { Probe() }
     func updateNSView(_ view: Probe, context: Context) { view.refresh() }
