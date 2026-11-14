@@ -18,10 +18,6 @@ def main():
     project='Windows/VELIN/VELIN.csproj'
     run([args.dotnet,'restore',project,'-r','win-x64','--locked-mode','--source','https://api.nuget.org/v3/index.json'],env)
     run([args.dotnet,'run','--project','Windows/VELIN.Core.Tests/VELIN.Core.Tests.csproj','-c','Release'],env)
-    run([args.dotnet,'publish',project,'-c','Release','-r','win-x64','--no-restore','-o',str(out),'-p:EnableCompressionInSingleFile=true'],env)
-    exe=out/'VELIN.exe';data=exe.read_bytes();pe=inspect(data)
-    expected=tuple(map(int,(ROOT/'VERSION').read_text().strip().split('.')))+(int((ROOT/'BUILD_NUMBER').read_text()),)
-    if pe['machine']!=0x8664 or pe['subsystem']!=2 or not pe['has_icon'] or expected not in pe['file_versions']:raise SystemExit('Windows x64 GUI/icon/version metadata does not match the release.')
     # Ship the actual runtime and dependency license notices alongside the portable executable.
     assets=json.loads((ROOT/'Windows/VELIN/obj/project.assets.json').read_text())
     packages={name.lower() for name,info in assets['libraries'].items() if info.get('type')=='package' and not name.startswith('Microsoft.NET.ILLink')}
@@ -36,6 +32,13 @@ def main():
             if path.is_file() and path.name.upper() in ('LICENSE','LICENSE.TXT','LICENSE.MD','THIRD-PARTY-NOTICES.TXT','THIRD-PARTY-NOTICES','THIRDPARTYNOTICES.TXT'):
                 notices.append(f'\n\n## {package} / {path.name}\n\n'+path.read_text(errors='replace'))
     (out/'THIRD-PARTY-NOTICES.txt').write_text('VELIN Windows dependencies and runtime notices\n'+''.join(notices))
+    with (out/'THIRD-PARTY-NOTICES.txt').open('a') as stream:
+        for name,path in [('VELIN',ROOT/'LICENSE'),('whisper.cpp',worker_dir/'WHISPER-LICENSE.txt'),('Windows speech runtime',ROOT/'SpeechWorker/SPEECH-RUNTIME-NOTICES.txt')]:stream.write('\n\n## '+name+'\n\n'+path.read_text())
+    shutil.copy2(out/'THIRD-PARTY-NOTICES.txt',embedded/'THIRD-PARTY-NOTICES.txt')
+    run([args.dotnet,'publish',project,'-c','Release','-r','win-x64','--no-restore','-o',str(out),'-p:EnableCompressionInSingleFile=true'],env)
+    exe=out/'VELIN.exe';data=exe.read_bytes();pe=inspect(data)
+    expected=tuple(map(int,(ROOT/'VERSION').read_text().strip().split('.')))+(int((ROOT/'BUILD_NUMBER').read_text()),)
+    if pe['machine']!=0x8664 or pe['subsystem']!=2 or not pe['has_icon'] or expected not in pe['file_versions']:raise SystemExit('Windows x64 GUI/icon/version metadata does not match the release.')
     shutil.copy2(worker,out/'VelinSpeech.exe');shutil.copy2(worker_dir/'WHISPER-LICENSE.txt',out/'WHISPER-LICENSE.txt');
     shutil.copy2(ROOT/'LICENSE',out/'LICENSE.txt');shutil.copy2(ROOT/'docs/WINDOWS.md',out/'WINDOWS.md')
     commit=subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT,text=True).strip()

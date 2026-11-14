@@ -21,3 +21,5 @@ Sources: [dotnet/runtime](https://github.com/dotnet/runtime), [dotnet/winforms](
 ## Local multilingual speech worker
 
 Both platforms include VELIN’s pipe-based speech worker linked statically with whisper.cpp / ggml v1.9.5, commit d1be6fde11ac6e0407606b4e42fe72d34add8037 (MIT, copyright © 2023–2026 the ggml authors). The pinned source archive is integrity checked; its actual MIT license is bundled as WHISPER-LICENSE.txt. The worker opens no server and receives no provider credentials. Optional multilingual model weights are downloaded separately from ggerganov/whisper.cpp on Hugging Face, checked against upstream hashes, and not redistributed in source/installers. Whisper model licensing is documented by [OpenAI Whisper](https://github.com/openai/whisper/blob/main/LICENSE).
+
+The prepared Windows cross-build also includes Zig runtime/MIT, LLVM libc++/libc++abi/libunwind (Apache 2.0 with LLVM exceptions and their notices), and MinGW-w64 runtime notices in SpeechWorker/SPEECH-RUNTIME-NOTICES.txt. Actual runtime/dependency/VELIN/Whisper notices are embedded in the portable Windows EXE (About → Licenses and notices) and included in the ZIP.
