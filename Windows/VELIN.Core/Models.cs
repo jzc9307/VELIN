@@ -34,6 +34,10 @@ public sealed class Settings {
     public Dictionary<string,ModeContext> ModeContexts { get; set; } = [];
     public bool PersonalizationMigrated { get; set; }
     public bool ComputerFirstMigrated { get; set; }
+    public string SpeechCountry {get;set;}="MY";
+    [JsonIgnore] public string EffectiveSpeechHint=>"Malaysia: English, Bahasa Melayu and Mandarin Chinese; preserve code-switching and the original script. Do not translate. "+MixedLanguageHint;
+    [JsonIgnore] public string SpeechDisplayName=>SpeechBackend=="whisper"?"Malaysia · EN / BM / 中文":Language;
+    public Settings CaptureSettings(bool mic)=>new(){Microphone=mic,ComputerAudio=!mic,SpeechBackend=SpeechBackend,Language=Language,SpeechCountry=SpeechCountry,LocalModelPath=LocalModelPath,SpeechWorkerPath=SpeechWorkerPath,MixedLanguageHint=MixedLanguageHint};
     public string SpeechBackend { get; set; } = "windows";
     public string LocalModelPath { get; set; } = "";
     public string SpeechWorkerPath { get; set; } = "";
@@ -111,4 +115,14 @@ public sealed class LocalStore(string root) {
         try { File.WriteAllText(tmp, JsonSerializer.Serialize(value, Json)); File.Move(tmp, file, true); }
         finally { if (File.Exists(tmp)) File.Delete(tmp); }
     }
+}
+
+public sealed class PromptDictation {
+    string basis="",rendered="";readonly HeardDraft speech=new();bool segmentActive,protectEdit;
+    public void Begin(string prompt){basis=rendered=prompt;speech.Reset();segmentActive=protectEdit=false;}
+    void AcceptEdit(string prompt){if(prompt==rendered)return;basis=rendered=prompt;if(segmentActive)protectEdit=true;}
+    string Join(string words)=>words.Length==0?basis:basis+(basis.Length==0||char.IsWhiteSpace(basis[^1])?"":" ")+words;
+    public string Update(string words,string current){AcceptEdit(current);if(words.Length==0)return current;speech.Update(words);segmentActive=true;if(protectEdit)return current;return rendered=Join(speech.Text);}
+    public string Finish(string words,string current){AcceptEdit(current);speech.Finish(words);if(!protectEdit)basis=Join(speech.Text);rendered=basis;speech.Reset();segmentActive=protectEdit=false;return rendered;}
+    public void Consume(){basis=rendered="";speech.Consume();protectEdit=false;}
 }

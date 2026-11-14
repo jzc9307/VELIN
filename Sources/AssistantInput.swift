@@ -33,7 +33,13 @@ struct AssistantInput: NSViewRepresentable {
     }
     func updateNSView(_ field: AssistantTextField, context: Context) {
         context.coordinator.parent = self
-        if field.stringValue != text { field.stringValue = text }
+        if field.stringValue != text {
+            let editor = field.currentEditor() as? NSTextView
+            if editor?.hasMarkedText() != true {
+                field.stringValue = text
+                if let editor, editor.string != text { editor.string = text; editor.setSelectedRange(NSRange(location: (text as NSString).length, length: 0)) }
+            }
+        }
         field.placeholderString = placeholder
         if context.coordinator.focusToken != focusToken {
             context.coordinator.focusToken = focusToken

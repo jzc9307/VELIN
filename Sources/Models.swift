@@ -120,6 +120,37 @@ struct HeardQuestionDraft {
     mutating func reset() { self = Self() }
 }
 
+/// Microphone words belong to the editable question, never to the meeting transcript.
+struct PromptDictationDraft {
+    private var base = "", rendered = ""
+    private var speech = HeardQuestionDraft()
+    private var segmentActive = false, protectEdit = false
+    mutating func begin(_ prompt: String) { base = prompt; rendered = prompt; speech.reset(); segmentActive = false; protectEdit = false }
+    private mutating func acceptEdit(_ prompt: String) {
+        guard prompt != rendered else { return }
+        base = prompt; rendered = prompt
+        if segmentActive { protectEdit = true }
+    }
+    private func join(_ words: String) -> String {
+        guard !words.isEmpty else { return base }
+        return base + (base.isEmpty || base.last?.isWhitespace == true ? "" : " ") + words
+    }
+    mutating func update(_ words: String, current: String) -> String {
+        acceptEdit(current)
+        guard !words.isEmpty else { return current }
+        speech.update(words); segmentActive = true
+        guard !protectEdit else { return current }
+        rendered = join(speech.text); return rendered
+    }
+    mutating func finish(_ words: String, current: String) -> String {
+        acceptEdit(current); speech.finish(words)
+        if !protectEdit { base = join(speech.text) }
+        rendered = base; speech.reset(); segmentActive = false; protectEdit = false
+        return rendered
+    }
+    mutating func consume() { base = ""; rendered = ""; speech.consume(); protectEdit = false }
+}
+
 enum ReplyAction: String, CaseIterable, Identifiable {
     case answer = "Answer", say = "Say this", next = "Next step", more = "Explain more"
     var id: String { rawValue }
@@ -229,7 +260,8 @@ struct Configuration: Codable {
     var localModelPath = ""
     var mixedLanguageHint = "English, Bahasa Melayu, Mandarin Chinese. Preserve the spoken language; do not translate."
     var computerFirstMigrated = false
-    enum CodingKeys: String, CodingKey { case profiles, activeProfileID, customInstruction, mode, language, outputLanguage, microphone, systemAudio, localSpeechOnly, captureProtection, overlayOpacity, onboardingCompleted, contextFiles, aboutMe, modePreferences, speechBackend, localModelPath, mixedLanguageHint, computerFirstMigrated }
+    var speechCountry = "MY"
+    enum CodingKeys: String, CodingKey { case profiles, activeProfileID, customInstruction, mode, language, outputLanguage, microphone, systemAudio, localSpeechOnly, captureProtection, overlayOpacity, onboardingCompleted, contextFiles, aboutMe, modePreferences, speechBackend, localModelPath, mixedLanguageHint, computerFirstMigrated, speechCountry }
     init() {}
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -252,6 +284,7 @@ struct Configuration: Codable {
         localModelPath = try c.decodeIfPresent(String.self, forKey: .localModelPath) ?? ""
         mixedLanguageHint = try c.decodeIfPresent(String.self, forKey: .mixedLanguageHint) ?? mixedLanguageHint
         computerFirstMigrated = try c.decodeIfPresent(Bool.self, forKey: .computerFirstMigrated) ?? false
+        speechCountry = try c.decodeIfPresent(String.self, forKey: .speechCountry) ?? "MY"
         if modePreferences.isEmpty {
             modePreferences[mode.rawValue] = ModePreferences(instruction: customInstruction, outputLanguage: outputLanguage, files: contextFiles)
         }
@@ -260,6 +293,8 @@ struct Configuration: Codable {
         get { modePreferences[mode.rawValue] ?? ModePreferences() }
         set { modePreferences[mode.rawValue] = newValue }
     }
+    var effectiveSpeechHint: String { "Malaysia: English, Bahasa Melayu and Mandarin Chinese; preserve code-switching and the original script. Do not translate. " + mixedLanguageHint }
+    var speechDisplayName: String { speechBackend == "whisper" ? "Malaysia · EN / BM / 中文" : (Locale.current.localizedString(forIdentifier: language) ?? language) }
     var selectedInstruction: String { activeModePreferences.instruction }
     var selectedFiles: [ContextFile] { activeModePreferences.files }
     var selectedOutputLanguage: String { activeModePreferences.outputLanguage }

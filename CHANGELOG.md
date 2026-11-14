@@ -6,6 +6,13 @@ No pending changes.
 
 ## [0.2.0]
 
+### Build 5 · independent audio controls
+
+- Listen captures computer audio only; Mic works independently and dictates into the top question field. Each control starts/stops without changing the other.
+- Preserve typed edits and prevent late speech finalization from replaying a sent question. Mic words are not added to the meeting transcript.
+- Add Country → Malaysia beneath Local multilingual, supplying the English/Bahasa Melayu/Mandarin recognition preset. Show the selected preset in the listening status.
+- Replace confusing saved-source toggles with actual Start/Stop Listen and Start/Stop Mic controls.
+
 - Make Listen computer-audio-first, with a separate optional microphone toggle that can change without restarting the meeting stream; migrate the original two-input default once and preserve later explicit choices.
 - Reduce the gap between assistant controls and live speech, retaining the fixed top edge and downward animation.
 - Add an optional, entirely local multilingual Whisper engine for Malay, Mandarin, English and experimental Malaysian code-switching, with bounded audio buffering, a bundled warm worker, integrity-checked Base/Small model downloads and editable output. No cloud audio upload; mixed-language accuracy remains limited and Windows runtime needs verification.

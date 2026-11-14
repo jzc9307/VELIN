@@ -15,6 +15,9 @@ import ScreenCaptureKit
     var showLiveAudio: Bool { recording || startingAudio }
     @Published var recording = false
     @Published var startingAudio = false
+    @Published var dictating = false
+    @Published var startingDictation = false
+    @Published var dictationStatus = "Mic is ready"
     @Published var generating = false
     @Published var overlayExpanded = false
     @Published var assistantPresented = false
@@ -50,6 +53,8 @@ import ScreenCaptureKit
     var openMain: () -> Void = {}
     private let store: SessionStore
     private let audio = AudioCapture()
+    private let dictationAudio = AudioCapture()
+    private var dictationDraft = PromptDictationDraft()
     private var timer: Timer?
     private var activeStarted: Date?
     private var durationBeforeRecording: Double = 0
@@ -76,6 +81,13 @@ import ScreenCaptureKit
         audio.computerLevel = { [weak self] value in self?.computerLevel = value }
         audio.sourceState = { [weak self] source, state in self?.audioInputStates[source] = state }
         audio.warning = { [weak self] message in self?.audioWarning = message }
+        dictationAudio.partial = { [weak self] _, text in self?.receiveDictationPartial(text) }
+        dictationAudio.final = { [weak self] _, text in self?.receiveDictationFinal(text) }
+        dictationAudio.level = { [weak self] value in self?.level = value }
+        dictationAudio.sourceState = { [weak self] source, state in if source == "You" { self?.dictationStatus = state } }
+        dictationAudio.failure = { [weak self] message in guard let self else { return }; self.error = "Mic dictation: " + message; Task { await self.stopDictation() } }
+        dictationAudio.warning = { [weak self] message in if !message.isEmpty { self?.dictationStatus = message } }
+
     }
     func receiveSpeechPartial(source: String, text: String) {
         partials[source] = text
@@ -87,6 +99,14 @@ import ScreenCaptureKit
         if source == "Computer" { heardQuestion.finish(text) }
         liveTranscriptPreview = source + ": " + text
         session.transcript.append(TranscriptLine(source: source, text: text)); persistSession()
+    }
+    func receiveDictationPartial(_ text: String) {
+        guard dictating || startingDictation else { return }
+        prompt = dictationDraft.update(text, current: prompt)
+    }
+    func receiveDictationFinal(_ text: String) {
+        guard dictating || startingDictation else { return }
+        prompt = dictationDraft.finish(text, current: prompt)
     }
     var activeProfile: AIProfile? { config.profiles.first { $0.id == config.activeProfileID } }
     var endpointHost: String { activeProfile.flatMap { URL(string: $0.endpoint)?.host } ?? "No provider selected" }
@@ -176,7 +196,8 @@ import ScreenCaptureKit
         Task { [self] in
             defer { startingAudio = false }
             do {
-                try await audio.start(config: config)
+                var computerConfig = config; computerConfig.microphone = false; computerConfig.systemAudio = true
+                try await audio.start(config: computerConfig)
                 recording = true; sessionTab = "Conversation"; durationBeforeRecording = session.duration; activeStarted = Date()
                 timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
                     Task { @MainActor in guard let self, let start = self.activeStarted else { return }; self.elapsed = self.durationBeforeRecording + Date().timeIntervalSince(start); self.session.duration = self.elapsed }
@@ -194,19 +215,26 @@ import ScreenCaptureKit
     }
     func toggleListening() { if recording { Task { await stopListening() } } else { startListening() } }
     func toggleMicrophone() {
-        guard !startingAudio else { return }
-        if !config.microphone && !microphoneAllowed { requestMicrophone(); return }
-        config.microphone.toggle(); saveConfig()
-        guard recording else { return }
-        startingAudio = true
+        guard !startingDictation else { return }
+        if dictating { Task { await stopDictation() }; return }
+        refreshPermissions()
+        guard microphoneAllowed else { requestMicrophone(); return }
+        startingDictation = true; error = nil; dictationDraft.begin(prompt); showOverlay()
         Task {
-            do { try await audio.setMicrophone(enabled: config.microphone, config: config); audioInputStates["You"] = config.microphone ? "Listening" : "Off" }
-            catch { config.microphone = false; saveConfig(); self.error = error.localizedDescription }
-            startingAudio = false
+            defer { startingDictation = false }
+            do {
+                var micConfig = config; micConfig.microphone = true; micConfig.systemAudio = false
+                try await dictationAudio.start(config: micConfig)
+                dictating = true; dictationStatus = "Dictating into your question"; promptFocusToken &+= 1
+            } catch { await dictationAudio.stop(); dictating = false; self.error = "Mic dictation: " + error.localizedDescription }
         }
     }
+    func stopDictation() async {
+        guard dictating || startingDictation else { return }
+        await dictationAudio.stop(); dictating = false; level = 0; dictationStatus = "Mic is ready"
+    }
     func newSession() {
-        guard !recording && !startingAudio && !generating else { error = "Stop listening and finish the current answer before starting a new session."; return }
+        guard !recording && !startingAudio && !dictating && !startingDictation && !generating else { error = "Stop Listen and Mic and finish the current answer before starting a new session."; return }
         persistSession(); session = Session(mode: config.mode); overlayExpanded = false; elapsed = 0; partials = [:]; pendingImage = nil; prompt = ""; selectedHistory = nil; liveTranscriptPreview = ""; sessionTab = "Conversation"; heardQuestion.reset()
     }
     func persistSession() {
@@ -253,6 +281,7 @@ import ScreenCaptureKit
             session.messages.append(user); session.messages.append(ChatMessage(role: "assistant", text: ""))
             if session.title == "Untitled session" { session.title = String(actual.prefix(60)) }
             prompt = ""; pendingImage = nil
+            dictationDraft.consume()
         }
         let responseID = session.messages.last?.id, sessionID = session.id
         task = Task { [self] in
@@ -288,7 +317,7 @@ import ScreenCaptureKit
     func generateNotes() { ask("Write meeting notes in Markdown with: Summary, Decisions, Action items (owner and deadline only when stated), Open questions. Base them only on the supplied discussion. Clearly mark unknowns.", notes: true) }
     func cancelAnswer() { task?.cancel() }
     func openSession(_ value: Session) {
-        guard !recording && !startingAudio && !generating else { error = "Stop the current session before opening another."; return }
+        guard !recording && !startingAudio && !dictating && !startingDictation && !generating else { error = "Stop the current session before opening another."; return }
         persistSession(); session = value; elapsed = value.duration; selectedHistory = value.id; page = "Session"; pendingImage = nil; partials = [:]; heardQuestion.reset(); liveTranscriptPreview = ""
     }
     func export(_ value: Session) {
@@ -323,5 +352,5 @@ import ScreenCaptureKit
         }
     }
     func revealData() { NSWorkspace.shared.open(store.root) }
-    func terminate() async { task?.cancel(); testTask?.cancel(); await stopListening(); persistSession(); saveConfig() }
+    func terminate() async { task?.cancel(); testTask?.cancel(); await stopListening(); await stopDictation(); persistSession(); saveConfig() }
 }

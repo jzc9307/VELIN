@@ -1,6 +1,16 @@
+# v0.2.0 build 5 · independent audio controls
+
+Version stays 0.2.0 at the user's request; only the internal build advances to 5. Listen always starts a computer-only capture instance. Mic starts a separate microphone-only instance and sends recognition into the editable question field, with no dependency on Listen, no meeting-transcript entry, and no lower mic row. Stopping either instance leaves the other running. The question composer replaces partial revisions, protects manual edits for the current segment, and consumes submitted text so late finalization cannot recreate a sent question.
+
+The settings page now has actual Start/Stop controls and runtime statuses instead of saved source toggles. Local multilingual exposes Country → Malaysia and passes its English/Bahasa Melayu/Mandarin preset to the worker. The status displays Malaysia rather than the unused native locale. A native field-editor update synchronizes programmatic dictation text while preserving marked-text input composition.
+
+127 Mac standard checks pass (86 core/transport/geometry, 5 release, 36 profile/audio/workflow), including four isolated AppModel routing/start-stop cases and eight question-composer/country checks. The Windows shared-core suite passes 73 checks; Windows compile succeeds, while runtime testing remains pending. These tests use synthetic inputs and no real API keys, recording or private call content. Three isolated signed credential IPC checks also pass; the unchanged broker retains its existing scope and signature.
+
+---
+
 # v0.2.0 integration verification · 14 November 2026
 
-Current standard suite: **115 Mac checks** (78 core/transport/geometry, 5 release, 32 profile/audio/workflow), plus the separate 3 signed credential IPC checks. Windows shared-core suite: **66 checks**.
+Initial build 4 suite: **115 Mac checks** (78 core/transport/geometry, 5 release, 32 profile/audio/workflow), plus the separate 3 signed credential IPC checks. Windows shared-core suite: **66 checks**.
 
 New checks cover backward-compatible configuration migration, separate mode files/instructions, biography generation without invented facts, one-time microphone defaults, preserved later mic choices, and Chinese continuation after an answered partial. The Mac worker was tested with a public upstream English fixture, synthetic Malay and Mandarin audio, and a combined Malay/Mandarin clip. Both languages appeared in mixed output; spelling/romanization errors were observed. Base and Small were spot-checked. These are not real-call accuracy or Malaysian-dialect acceptance tests, and the local path is explicitly experimental.
 

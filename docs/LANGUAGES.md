@@ -1,6 +1,8 @@
 # Listening languages and Malaysian mixed speech
 
-Listen uses **computer audio by default**. It transcribes the interviewer or meeting playing on the same device. The separate mic button adds your own voice only when enabled. Updating from the original two-input default turns the mic off once; later explicit choices are preserved. Existing transcripts remain intact.
+**Listen** captures only computer audio and puts the interviewer’s words in the lower transcript/question panel. **Mic** independently dictates your own speech into the top question box. Mic does not require Listen, does not create a You row in the meeting transcript, and does not send an AI request. Press Enter to submit the editable question. You can run either control or both, and stop each independently. Both start inactive when the app opens.
+
+In **Audio & Permissions**, use the actual Start/Stop Listen and Start/Stop Mic controls. The previous saved source toggles are no longer used. Stop both controls before changing their shared speech engine, country or model.
 
 ## Two speech engines
 
@@ -9,7 +11,9 @@ Listen uses **computer audio by default**. It transcribes the interviewer or mee
 | Apple on Mac / Windows Speech on Windows | Fast live words in one selected language | Native recognition; installed language/assets determine support. Mac defaults to requiring on-device processing. |
 | Local multilingual · experimental | Malay, Mandarin, English and mixed-language speech | Bundled whisper.cpp worker, downloaded multilingual model, all audio processed locally. No audio uploads. |
 
-A language menu alone does not make the native recognizer multilingual. Select **Audio & Permissions → Local multilingual**, download **Base (142 MiB)** or **Small (466 MiB)**, then save/start Listen. Models download from Hugging Face; they are not included in Git, DMGs or EXEs. Downloads are checked against the upstream model hash. A local multilingual `.bin` can also be selected; English-only `.en` models are rejected. Model files must remain available at their selected path.
+The Malaysia preset supplies English, Bahasa Melayu and Mandarin recognition hints without requesting your location. It does not force AI response language or promise perfect code-switching.
+
+A language menu alone does not make the native recognizer multilingual. Select **Audio & Permissions → Local multilingual → Country: Malaysia**, download **Base (142 MiB)** or **Small (466 MiB)**, then save/start Listen or Mic. Models download from Hugging Face; they are not included in Git, DMGs or EXEs. Downloads are checked against the upstream model hash. A local multilingual `.bin` can also be selected; English-only `.en` models are rejected. Model files must remain available at their selected path.
 
 The worker keeps its model loaded for the listening session. Speech is decoded after a pause (roughly 0.65 seconds) or in approximately six-second chunks during continuous speech, so there is buffering before words appear. It does not translate deliberately. The language/spelling hint is optional and can help with names, but is not a guarantee. Base uses less memory; Small can improve some errors at greater resource cost. Choose the native engine when lowest live-text delay matters most.
 

@@ -210,21 +210,34 @@ struct PermissionRow: View {
 struct AudioSettingsView: View {
     @ObservedObject var model: AppModel
     @ObservedObject private var speechModels = SpeechModels.shared
+    private var audioActive: Bool { model.recording || model.startingAudio || model.dictating || model.startingDictation }
     var body: some View {
-        ScrollView { VStack(alignment: .leading, spacing: 22) {
-            SectionHeading(title: "Only when you press Listen.", subtitle: "Control the sources and permissions VELIN uses. No audio recording files are retained.")
-            permissions
-            ListeningStatusView(model: model)
-            Card { VStack(alignment: .leading, spacing: 20) {
-                Text("Audio sources").font(.system(size: 16, weight: .medium))
-                Toggle("Optional microphone · your voice (off by default)", isOn: $model.config.microphone)
-                Toggle("Computer audio · labeled Computer", isOn: $model.config.systemAudio)
-                Text("Computer audio may include several people. VELIN separates input sources, not individual speakers. Headphones help avoid the same voice reaching both inputs.").font(.system(size: 11)).foregroundStyle(Ink.muted)
-                Picker("Speech engine", selection: $model.config.speechBackend) { Text("Apple · fast, one selected language").tag("apple"); Text("Local multilingual · mixed languages (experimental)").tag("whisper") }.pickerStyle(.menu)
+        ScrollView { VStack(alignment: .leading, spacing: 20) {
+            SectionHeading(title: "Two controls. Two jobs.", subtitle: "Listen follows the computer. Mic types your words into the question box. Use either one, or both independently.")
+            Card { VStack(alignment: .leading, spacing: 16) {
+                HStack(spacing: 14) {
+                    Image(systemName: "speaker.wave.2").foregroundStyle(Ink.mint).frame(width: 24)
+                    VStack(alignment: .leading, spacing: 4) { Text("Listen · computer audio").font(.system(size: 14, weight: .semibold)); Text(model.startingAudio ? "Starting…" : model.recording ? "Listening to your meeting" : "Ready to listen").font(.system(size: 11)).foregroundStyle(Ink.muted) }
+                    Spacer(); Button(model.recording ? "Stop Listen" : "Start Listen") { model.toggleListening() }.buttonStyle(Press(primary: model.recording)).disabled(model.startingAudio)
+                }
+                Divider()
+                HStack(spacing: 14) {
+                    Image(systemName: "mic").foregroundStyle(Ink.lilac).frame(width: 24)
+                    VStack(alignment: .leading, spacing: 4) { Text("Mic · dictate your question").font(.system(size: 14, weight: .semibold)); Text(model.startingDictation ? "Starting…" : model.dictating ? "Typing your speech into the question box" : "Ready to dictate · Listen is not required").font(.system(size: 11)).foregroundStyle(Ink.muted) }
+                    Spacer(); Button(model.dictating ? "Stop Mic" : "Start Mic") { model.toggleMicrophone() }.buttonStyle(Press(primary: model.dictating)).disabled(model.startingDictation)
+                }
+                Text("Nothing is sent to AI automatically. Review or edit the question, then press Enter.").font(.system(size: 11)).foregroundStyle(Ink.muted)
+            } }
+            if model.showLiveAudio { ListeningStatusView(model: model) }
+            Card { VStack(alignment: .leading, spacing: 16) {
+                Text("Speech settings").font(.system(size: 16, weight: .medium))
+                Picker("Speech engine", selection: $model.config.speechBackend) { Text("Apple · one selected language").tag("apple"); Text("Local multilingual · mixed languages").tag("whisper") }.pickerStyle(.menu)
                 if model.config.speechBackend == "whisper" {
-                    Text("Malay + Mandarin + English, including Malaysian code-switching. Works locally with Whisper; short chunks are decoded after a pause or about six seconds. Accuracy, accents and mixed sentences need real testing. No automatic translation or audio upload.").font(.system(size: 11)).foregroundStyle(Ink.muted).lineSpacing(3)
-                    TextField("Optional spelling / language hints", text: $model.config.mixedLanguageHint).velinField()
-                    Text(model.config.localModelPath.isEmpty ? "No multilingual model selected." : URL(fileURLWithPath: model.config.localModelPath).lastPathComponent).font(.system(size: 11)).foregroundStyle(Ink.mint)
+                    Picker("Country", selection: $model.config.speechCountry) { Text("Malaysia").tag("MY") }.pickerStyle(.menu)
+                    Label("English + Bahasa Melayu + 中文", systemImage: "globe.asia.australia").font(.system(size: 13, weight: .medium)).foregroundStyle(Ink.mint)
+                    Text("Malaysia’s mixed-language preset applies to Listen and Mic. Recognition stays on this device. Mixed sentences can still be wrong; review the words before asking.").font(.system(size: 11)).foregroundStyle(Ink.muted).lineSpacing(3)
+                    TextField("Optional names or spelling hints", text: $model.config.mixedLanguageHint).velinField()
+                    Text(model.config.localModelPath.isEmpty ? "Choose or download a multilingual model below." : "Selected model: " + URL(fileURLWithPath: model.config.localModelPath).lastPathComponent).font(.system(size: 11)).foregroundStyle(Ink.mint)
                     HStack {
                         Button("Download Base · 142 MB") { speechModels.fetch(small: false) { url in model.config.localModelPath = url.path; model.saveConfig() } }.buttonStyle(Press()).disabled(speechModels.downloading)
                         Button("Small · 466 MB") { speechModels.fetch(small: true) { url in model.config.localModelPath = url.path; model.saveConfig() } }.buttonStyle(Press()).disabled(speechModels.downloading)
@@ -232,19 +245,24 @@ struct AudioSettingsView: View {
                     }
                     if speechModels.downloading { HStack { ProgressView(value: speechModels.progress); Button("Cancel download") { speechModels.cancel() }.buttonStyle(IconPress()) } }
                     if !speechModels.result.isEmpty { Text(speechModels.result).font(.system(size: 11)).foregroundStyle(Ink.muted) }
-                    Text("Base is lighter; Small may improve recognition at higher memory and processing cost. Model weights are an optional free download from Hugging Face, kept on this Mac and excluded from Git/installers.").font(.system(size: 10)).foregroundStyle(Ink.muted)
+                    Text("One-time model download. Base is lighter; Small uses more resources. Local multilingual speech arrives in short chunks rather than word by word.").font(.system(size: 10)).foregroundStyle(Ink.muted)
                 } else {
-                Picker("Transcription language", selection: $model.config.language) { Text("English (US)").tag("en-US"); Text("English (UK)").tag("en-GB"); Text("English (Malaysia)").tag("en-MY"); Text("中文（普通话）").tag("zh-CN"); Text("中文（繁體）").tag("zh-TW"); Text("Bahasa Melayu (Malaysia)").tag("ms-MY"); Text("粵語（香港）").tag("zh-HK"); Text("Bahasa Indonesia").tag("id-ID"); Text("தமிழ் · Tamil").tag("ta-IN"); Text("日本語").tag("ja-JP"); Text("Español").tag("es-ES"); Text("Français").tag("fr-FR"); Text("Deutsch").tag("de-DE") }.pickerStyle(.menu)
-                Toggle("Require on-device speech recognition", isOn: $model.config.localSpeechOnly)
-                Text("When enabled, unsupported on-device languages produce a clear error. Turning this off permits Apple's speech service to process audio according to your system settings. Your selected AI provider receives text only when you ask a question or generate notes.").font(.system(size: 11)).foregroundStyle(Ink.muted).lineSpacing(4)
+                    Picker("Language", selection: $model.config.language) { Text("English (US)").tag("en-US"); Text("English (UK)").tag("en-GB"); Text("English (Malaysia)").tag("en-MY"); Text("中文（普通话）").tag("zh-CN"); Text("中文（繁體）").tag("zh-TW"); Text("Bahasa Melayu (Malaysia)").tag("ms-MY"); Text("粵語（香港）").tag("zh-HK"); Text("Bahasa Indonesia").tag("id-ID"); Text("தமிழ் · Tamil").tag("ta-IN"); Text("日本語").tag("ja-JP"); Text("Español").tag("es-ES"); Text("Français").tag("fr-FR"); Text("Deutsch").tag("de-DE") }.pickerStyle(.menu)
+                    Toggle("Keep Apple recognition on this device", isOn: $model.config.localSpeechOnly).toggleStyle(.switch)
+                    Text("Turning this off allows Apple’s speech service to process audio. Local language availability depends on installed system assets.").font(.system(size: 11)).foregroundStyle(Ink.muted)
                 }
-                Button("Save audio settings") { model.saveConfig(); model.notice = "Audio settings saved. Changes apply the next time you press Listen." }.buttonStyle(Press(primary: true))
-            }.toggleStyle(.switch) }.disabled(model.recording || model.startingAudio)
-            if model.recording { Text("Stop listening before changing audio sources.").font(.system(size: 12)).foregroundStyle(Ink.mint) }
-            HStack { Text("Input level").font(.system(size: 12)); ProgressView(value: model.level).tint(Ink.mint); Text(model.recording ? "LIVE" : "STOPPED").font(.system(size: 9, weight: .bold)).foregroundStyle(Ink.muted) }
-        }.padding(32) }.onAppear { model.refreshPermissions() }
+                Button("Save speech settings") { model.saveConfig(); model.notice = "Speech settings saved. Used next time you start Listen or Mic." }.buttonStyle(Press(primary: true))
+            } }.disabled(audioActive)
+            if audioActive { Text("Stop Listen and Mic to change the speech engine, country or model.").font(.system(size: 11)).foregroundStyle(Ink.mint) }
+            permissions
+        }.padding(28) }.onAppear { model.refreshPermissions() }
     }
-    var permissions: some View { VStack(spacing: 10) { PermissionRow(icon: "mic", title: "Microphone", detail: "Transcribe what you say during a session.", granted: model.microphoneAllowed, action: model.requestMicrophone); PermissionRow(icon: "waveform.badge.mic", title: "Speech recognition", detail: "Turn live audio into text using Apple's speech framework.", granted: model.speechAllowed, action: model.requestSpeech); PermissionRow(icon: "display", title: "Screen & system audio", detail: "Capture computer audio during sessions and screenshots when requested.", granted: model.screenAllowed, action: model.requestScreen); HStack { Text("macOS may ask you to quit and reopen after allowing screen recording.").font(.system(size: 10)).foregroundStyle(Ink.muted); Spacer(); Button("Refresh status") { model.refreshPermissions() }.buttonStyle(.plain).font(.system(size: 11)).foregroundStyle(Ink.mint) } } }
+    var permissions: some View { VStack(spacing: 10) {
+        PermissionRow(icon: "mic", title: "Microphone access", detail: "Needed only for Mic dictation into the question box.", granted: model.microphoneAllowed, action: model.requestMicrophone)
+        PermissionRow(icon: "waveform.badge.mic", title: "Apple speech recognition", detail: "Needed for the Apple speech engine. Local multilingual uses its own on-device model.", granted: model.speechAllowed, action: model.requestSpeech)
+        PermissionRow(icon: "display", title: "Screen & system audio", detail: "Needed for Listen and requested screenshots. Mic dictation works separately.", granted: model.screenAllowed, action: model.requestScreen)
+        HStack { Text("macOS may require reopening after a screen permission change.").font(.system(size: 10)).foregroundStyle(Ink.muted); Spacer(); Button("Refresh status") { model.refreshPermissions() }.buttonStyle(IconPress()) }
+    } }
 }
 struct PrivacyView: View {
     @ObservedObject var model: AppModel

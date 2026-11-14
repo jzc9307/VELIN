@@ -63,11 +63,12 @@ internal sealed class OverlayForm : Form
         if (IsDisposed) return; updating = true; try
         {
             if (prompt.Text != state.Prompt) { prompt.Text = state.Prompt; prompt.SelectionStart = prompt.TextLength; }
+            prompt.PlaceholderText=state.MicActive?"Speak your question…":"Ask about your screen or conversation…";
             var showAudio = state.Listening || state.AudioBusy; audioPanel.Visible = showAudio;
             if ((!heard.Focused || !state.Heard.IsEdited) && heard.Text != state.Heard.Text) { heard.Text = state.Heard.Text; heard.SelectionStart = heard.TextLength; heard.ScrollToCaret(); }
-            audioStatus.Text = (state.Heard.IsEdited ? "Your correction · " : "") + state.Status + $"    You {state.MicLevel:P0}  ·  Computer {state.ComputerLevel:P0}";
+            audioStatus.Text = (state.Heard.IsEdited ? "Your correction · " : "") + state.Status + $"    Computer {state.ComputerLevel:P0}";
             listen.Text = state.AudioBusy ? "Starting…" : state.Listening ? "Stop" : "Listen"; listen.Width = 76; listen.Enabled = !state.AudioBusy; listen.Primary = state.Listening;
-            mode.Text = state.Config.Mode + " ▾"; mode.Width = 100; microphone.Primary = state.Config.Microphone; microphone.Enabled = !state.AudioBusy; provider.Text = (state.Active?.Provider ?? "AI") + " ▾"; provider.Width = 90; send.Enabled = !state.Generating; expand.Text = expanded ? "⌃" : "⌄";
+            mode.Text = state.Config.Mode + " ▾"; mode.Width = 100; microphone.Primary = state.MicActive; microphone.Enabled = !state.MicBusy; microphone.Text = state.MicBusy ? "…" : "Mic"; provider.Text = (state.Active?.Provider ?? "AI") + " ▾"; provider.Width = 90; send.Enabled = !state.Generating; expand.Text = expanded ? "⌃" : "⌄";
             imagePanel.Visible = state.Image != null; if (!ReferenceEquals(shownImage, state.Image)) { shownImage = state.Image; var old = preview.Image; preview.Image = null; old?.Dispose(); if (shownImage != null) { using var stream = new MemoryStream(shownImage); using var bitmap = Image.FromStream(stream); preview.Image = new Bitmap(bitmap); } }
             answerPanel.Visible = expanded && state.Session.Messages.Any(m => m.Role == "assistant"); RenderAnswer();
             error.Text = state.Error; error.Visible = state.Error.Length > 0;

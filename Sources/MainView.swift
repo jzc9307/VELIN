@@ -97,7 +97,7 @@ struct OverviewView: View {
                 }.overlay(RoundedRectangle(cornerRadius: 22).strokeBorder(.white.opacity(0.08)))
                 HStack { Text("Make room for the moment").font(.system(size: 17, weight: .medium)); Spacer(); Text("THREE WAYS TO BEGIN").font(.system(size: 9, weight: .medium)).tracking(1.5).foregroundStyle(Ink.muted) }
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 210), spacing: 14)], spacing: 14) {
-                    action("Listen & stay present", "Live transcript from your computer audio. Your mic is optional.", "waveform", "Start listening", Ink.mint) { model.page = "Session"; model.startListening() }
+                    action("Listen & stay present", "Listen transcribes computer audio. Mic dictates your question.", "waveform", "Start listening", Ink.mint) { model.page = "Session"; model.startListening() }
                     action("See the bigger picture", "Attach a screenshot and ask about what's on screen.", "viewfinder", "Capture screen", Ink.lilac) { model.capture() }
                     action("Bring your own AI", "Your providers. Your keys. Up to five connections.", "circle.hexagongrid", "AI connections", Color(hex: 0xE6C7A1)) { model.page = "AI Connections" }
                 }
@@ -198,6 +198,7 @@ struct ChatView: View {
                 HStack(spacing: 13) {
                     Button { model.capture() } label: { Label("Screen", systemImage: "viewfinder") }.disabled(model.generating)
                     Button { model.toggleListening() } label: { Label(model.recording ? "Stop" : "Listen", systemImage: "waveform").foregroundStyle(model.recording ? Ink.mint : Ink.muted) }.disabled(model.startingAudio)
+                    Button { model.toggleMicrophone() } label: { Label(model.dictating ? "Stop mic" : "Mic", systemImage: model.dictating ? "mic.fill" : "mic").foregroundStyle(model.dictating ? Ink.mint : Ink.muted) }.disabled(model.startingDictation)
                     Menu { ForEach(AssistantMode.allCases) { mode in Button(mode.rawValue) { model.config.mode = mode; model.session.mode = mode; model.saveConfig() } } } label: { Label(model.config.mode.rawValue, systemImage: model.config.mode.icon) }.menuStyle(.borderlessButton).fixedSize()
                     Spacer(minLength: 0)
                     if compact { Text("⌃⌥↵").font(.system(size: 10, design: .monospaced)) }

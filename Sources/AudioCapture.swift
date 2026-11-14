@@ -353,7 +353,7 @@ final class AudioCapture: NSObject, SCStreamOutput, SCStreamDelegate, @unchecked
         let channel: any SpeechInput
         if config.speechBackend == "whisper" {
             sourceState(source, "Loading local multilingual model…")
-            channel = MultilingualSpeechChannel(source: source, modelPath: config.localModelPath, hint: config.mixedLanguageHint)
+            channel = MultilingualSpeechChannel(source: source, modelPath: config.localModelPath, hint: config.effectiveSpeechHint)
         } else {
         #if compiler(>=6.4)
         if #available(macOS 27, *), SpeechTranscriber.isAvailable,

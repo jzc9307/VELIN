@@ -108,7 +108,7 @@ def package():
     for p in sorted(out.iterdir()):
         if p.suffix in ('.zip','.dmg','.exe'):sums.append(hashlib.sha256(p.read_bytes()).hexdigest()+'  '+p.name)
     (out/'SHA256SUMS.txt').write_text('\n'.join(sums)+'\n')
-    (out/'manifest.json').write_text(json.dumps({'version':v,'commit':run(['git','rev-parse','HEAD']),'platforms':['macOS-arm64','Windows-x64-preview'],'windows_runtime_tested':False},indent=2)+'\n')
+    (out/'manifest.json').write_text(json.dumps({'version':v,'build':(ROOT/'BUILD_NUMBER').read_text().strip(),'commit':run(['git','rev-parse','HEAD']),'platforms':['macOS-arm64','Windows-x64-preview'],'windows_runtime_tested':False},indent=2)+'\n')
     entry=next(x for x in catalog() if x['version']==v)
     notes='# VELIN '+v+'\n\n**Free and open source. No VELIN subscription.** AI provider API usage is billed separately.\n\n'+entry.get('notes','')+'\n\nApple Silicon · macOS 14+. Continuous local speech requires macOS 27 and a supported language; other systems use the legacy path. This build is locally self-signed, not Developer ID signed or Apple-notarized.\n\nWindows 11 x64 preview: portable, self-contained EXE (ZIP includes guide and notices). Unsigned; cross-compiled on macOS. Windows runtime/audio/UI testing remains required; it is not full Mac feature parity.\n'
     (out/'NOTES.md').write_text(notes)

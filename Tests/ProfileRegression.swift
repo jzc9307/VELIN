@@ -43,6 +43,26 @@ import AVFoundation
             print("PASS: computer sample-buffer conversion preserves frame count and separate channels")
         }
         #endif
+        let routingRoot = FileManager.default.temporaryDirectory.appendingPathComponent("velin-routing-" + UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: routingRoot) }
+        let routing = AppModel(store: SessionStore(root: routingRoot))
+        routing.startingDictation = true
+        routing.receiveDictationPartial("A dictated question")
+        precondition(routing.prompt == "A dictated question" && routing.pendingHeardQuestion.isEmpty && routing.session.transcript.isEmpty && !routing.showLiveAudio)
+        print("PASS: microphone words populate the question without Listen, raw transcript, or listening panel")
+        routing.receiveSpeechPartial(source: "Computer", text: "The interviewer question")
+        routing.receiveDictationFinal("A dictated question?")
+        precondition(routing.prompt == "A dictated question?" && routing.pendingHeardQuestion == "The interviewer question" && routing.session.transcript.isEmpty)
+        print("PASS: simultaneous computer speech and mic dictation remain separate")
+        routing.startingDictation = false; routing.dictating = true; routing.recording = true
+        await routing.stopListening()
+        precondition(routing.dictating && routing.prompt == "A dictated question?" && !routing.showLiveAudio)
+        print("PASS: stopping Listen leaves independent mic dictation and its draft active")
+        routing.recording = true
+        await routing.stopDictation()
+        precondition(routing.recording && !routing.dictating && routing.prompt == "A dictated question?")
+        routing.recording = false
+        print("PASS: stopping Mic preserves computer listening and the editable question")
         var heard = HeardQuestionDraft()
         heard.update("What is"); heard.update("What is JSON?")
         precondition(heard.text == "What is JSON?")
@@ -170,6 +190,6 @@ import AVFoundation
             precondition(model.session.messages.first?.inputSource == nil && model.pendingHeardQuestion == "Unrelated old speech")
             print("PASS: a screenshot without typed text takes priority over unrelated pending speech")
         }
-        print("\(30 + modernChecks) profile regression checks passed with transport fixture.")
+        print("\(34 + modernChecks) profile regression checks passed with transport fixture.")
     }
 }

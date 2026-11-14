@@ -69,8 +69,8 @@ Every published version keeps its own macOS and available Windows links. Newest 
 
 ## New in v0.2.0
 
-- **Computer audio first.** Listen follows the interviewer; your own mic is a separate optional button.
-- **Local multilingual speech.** An optional model handles Malay, Mandarin and English, including experimental code-switching. [Setup and honest limits](docs/LANGUAGES.md).
+- **Computer audio first.** Listen transcribes the interviewer from computer audio; Mic independently dictates into your question box.
+- **Local multilingual speech.** An optional model handles Malay, Mandarin and English, including the **Country → Malaysia** mixed-language preset. [Setup and honest limits](docs/LANGUAGES.md).
 - **About me.** A dedicated background section and a guided, local introduction builder using only your facts.
 - **A mode for the moment.** Interview, Behavioral Interview, Coding Interview, System Design, Case Interview, Recruiter Screen, Recruiting, Team Meet and Lecture join the existing modes. Each mode keeps its own instructions, response language and files.
 - **A tighter assistant.** Less space between the toolbar and live transcript.
@@ -79,7 +79,7 @@ Every published version keeps its own macOS and available Windows links. Newest 
 
 | Feature | How it works |
 | --- | --- |
-| Listen → Enter → answer | Computer audio supplies the other side’s question; the optional microphone adds your context. Nothing is automatically sent for an AI answer. |
+| Listen → Enter → answer | Computer audio supplies the other side’s question; Mic independently types into your question field. Nothing is automatically sent for an AI answer. |
 | Continuous local speech | Supported languages use Apple’s continuous local engine on macOS 27+. Earlier systems/languages use the legacy Apple Speech path, with on-device recognition required by default. |
 | Screen questions | Attach a screenshot, review its preview, then ask a vision-capable model. |
 | Personal context | Save About me across modes; each mode has separate instructions, response language and context files (Mac also supports text PDFs). |

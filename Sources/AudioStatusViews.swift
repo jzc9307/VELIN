@@ -6,18 +6,15 @@ struct ListeningStatusView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: compact ? 5 : 9) {
             HStack {
-                Label(model.startingAudio ? "Connecting audio…" : model.recording ? "Listening · " + model.config.language : "Audio is stopped", systemImage: "waveform").font(.system(size: 10, weight: .semibold)).foregroundStyle(Ink.mint)
+                Label(model.startingAudio ? "Connecting audio…" : model.recording ? "Listening · " + model.config.speechDisplayName : "Audio is stopped", systemImage: "waveform").font(.system(size: 10, weight: .semibold)).foregroundStyle(Ink.mint)
                 Spacer()
                 if compact && !model.pendingHeardQuestion.isEmpty {
                     Button(model.generating ? "Answering…" : "Answer ↵") { model.ask() }.buttonStyle(Press(primary: true)).font(.system(size: 10, weight: .semibold)).disabled(model.generating).keyboardShortcut(.return, modifiers: [])
                 }
                 if compact { Button("Transcript ↗") { model.sessionTab = "Transcript"; model.page = "Session"; model.openMain() }.font(.system(size: 10)).buttonStyle(IconPress()) }
             }.frame(height: compact ? 26 : nil)
-            HStack(spacing: 16) {
-                if model.config.microphone { meter("You", "mic", model.level) }
-                meter("Computer", "speaker.wave.2", model.computerLevel)
-            }
-            if !compact && model.config.microphone { Text("Microphone input: " + model.microphoneInputName + ". Teams may use a different input.").font(.system(size: 10)).foregroundStyle(Ink.muted) }
+            meter("Computer", "speaker.wave.2", model.computerLevel)
+
             if !model.audioWarning.isEmpty { Text(model.audioWarning).font(.system(size: 10)).foregroundStyle(Ink.lilac).lineLimit(compact ? 2 : 6) }
             if !model.pendingHeardQuestion.isEmpty || model.heardQuestion.isEdited {
                 HStack(spacing: 7) {

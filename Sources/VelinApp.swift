@@ -51,7 +51,7 @@ struct OverlayView: View {
             VStack(spacing: 0) {
             HStack(alignment: .center, spacing: 12) {
                 AssistantInput(text: $model.prompt,
-                    placeholder: model.recording ? "Type a question, or Enter to answer the other side…" : "Ask anything about your screen or conversation…",
+                    placeholder: model.dictating ? "Speak your question…" : model.recording ? "Type a question, or Enter to answer the other side…" : "Ask anything about your screen or conversation…",
                     focusToken: model.promptFocusToken, submit: { model.ask() }).frame(height: 34)
                 Button { if model.generating { model.cancelAnswer() } else { model.ask() } } label: {
                     Image(systemName: model.generating ? "stop.fill" : "return").font(.system(size: 15, weight: .semibold))
@@ -71,7 +71,7 @@ struct OverlayView: View {
                     .accessibilityValue(model.config.captureProtection ? "On" : "Off")
                     .help("Hidden mode hides the Dock and menu-bar icons and requests capture exclusion. Use ⌃⌥Space to reopen the bar; click the eye again to restore the icons.")
                 Button { model.toggleListening() } label: { HStack(spacing: 5) { Image(systemName: "waveform").font(.system(size: 14)); Text(model.startingAudio ? "Starting…" : model.recording ? clockText(model.elapsed) : "Listen").font(.system(size: 11, weight: .medium)).monospacedDigit() }.foregroundStyle(model.recording ? Ink.mint : Ink.muted) }.buttonStyle(IconPress()).disabled(model.startingAudio).help("Start / stop listening · ⌃⌥L")
-                Button { model.toggleMicrophone() } label: { Image(systemName: model.config.microphone ? "mic.fill" : "mic.slash").font(.system(size: 13)).foregroundStyle(model.config.microphone ? Ink.mint : Ink.muted) }.buttonStyle(IconPress()).disabled(model.startingAudio).help(model.config.microphone ? "Turn off your microphone" : "Add your microphone · optional").accessibilityLabel(model.config.microphone ? "Microphone on" : "Microphone off")
+                Button { model.toggleMicrophone() } label: { Image(systemName: model.startingDictation ? "ellipsis" : model.dictating ? "mic.fill" : "mic").font(.system(size: 13)).foregroundStyle(model.dictating ? Ink.mint : Ink.muted) }.buttonStyle(IconPress()).disabled(model.startingDictation).help(model.dictating ? "Stop mic dictation" : "Mic: dictate into your question").accessibilityLabel(model.dictating ? "Stop mic dictation" : model.startingDictation ? "Starting mic dictation" : "Start mic dictation")
                 Menu { ForEach(AssistantMode.allCases) { mode in Button(mode.rawValue) { model.config.mode = mode; model.session.mode = mode; model.saveConfig() } } } label: { OverlayMenuLabel(title: model.config.mode.rawValue, icon: "square.grid.2x2") }.menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize().modifier(OverlayMenuChrome())
                 Menu { ForEach(model.config.profiles) { profile in Button("\(profile.name) · \(profile.provider.rawValue)") { model.config.activeProfileID = profile.id; model.saveConfig() } }; Divider(); Button("AI Connections…") { model.page = "AI Connections"; model.openMain() } } label: { OverlayMenuLabel(title: model.activeProfile?.provider.rawValue ?? "Connect AI", icon: "circle.hexagongrid") }.menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize().modifier(OverlayMenuChrome())
                 Spacer(minLength: 0)

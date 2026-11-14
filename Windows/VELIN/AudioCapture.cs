@@ -62,7 +62,7 @@ internal sealed class AudioCapture : IDisposable
                 if (config.SpeechBackend == "whisper")
                 {
                     var path = config.SpeechWorkerPath.Length > 0 ? config.SpeechWorkerPath : LocalSpeechWorker.BundledExecutable();
-                    local = new LocalSpeechWorker(path, config.LocalModelPath, config.MixedLanguageHint, text => output(source, text, true), warning);
+                    local = new LocalSpeechWorker(path, config.LocalModelPath, config.EffectiveSpeechHint, text => output(source, text, true), warning);
                 }
                 else
                 {
