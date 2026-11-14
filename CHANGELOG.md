@@ -6,6 +6,11 @@ No pending changes.
 
 ## [0.2.1]
 
+- Show installed version/build, latest public release, last check time and Refresh in About. Bundle this installed version’s release notes for offline viewing, with a verified update action when available.
+
+- Add an animated launch check for public GitHub Releases, a compact sidebar update card, and a cancellable download-progress screen. Download & restart verifies a signed release descriptor and artifact hash before replacing VELIN; active Listen/Mic/answers block restart.
+- Sign update metadata with a dedicated Keychain-held release key. Preserve previous app contents for rollback and keep user keys, settings, models and sessions outside the update. Existing installs need this updater-capable version once; future releases must include the app ZIP, EXE and signed VELIN-update.json.
+
 - Add optional Soniox STT v6 streaming with Malaysia English/Malay/Chinese hints, separate secure speech credentials and explicit audio-streaming consent. Default remains offline; no automatic cloud fallback.
 
 - Keep toolbar labels on one line with bounded mode/provider menus and an icon for History; use one capsule style for reply actions.

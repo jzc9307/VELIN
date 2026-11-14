@@ -216,6 +216,11 @@ import AVFoundation
             precondition(model.session.messages.first?.inputSource == nil && model.pendingHeardQuestion == "Unrelated old speech")
             print("PASS: a screenshot without typed text takes priority over unrelated pending speech")
         }
-        print("\(38 + modernChecks) profile regression checks passed with transport fixture.")
+        try model.prepareForUpdate()
+        let savedSessions = try store.load([Session].self, name: "sessions.json", fallback: [])
+        let savedConfig = try store.load(Configuration.self, name: "settings.json", fallback: Configuration())
+        precondition(savedSessions.contains(where: { $0.id == model.session.id }) && savedConfig.activeProfileID == model.config.activeProfileID)
+        print("PASS: updater flush preserves the current session and configuration before restarting")
+        print("\(39 + modernChecks) profile regression checks passed with transport fixture.")
     }
 }

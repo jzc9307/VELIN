@@ -15,6 +15,7 @@ def main():
     worker=worker_dir/'VelinSpeech.exe'
     if not worker.exists():raise SystemExit('Build the Windows local speech worker first. See docs/LANGUAGES.md for native / Zig cross-build instructions.')
     embedded=ROOT/'Windows/VELIN/obj/worker';embedded.mkdir(parents=True,exist_ok=True);shutil.copy2(worker,embedded/'VelinSpeech.exe')
+    subprocess.run([sys.executable,str(ROOT/'scripts/write-release-notes.py'),str(embedded/'ReleaseNotes.json')],check=True)
     project='Windows/VELIN/VELIN.csproj'
     run([args.dotnet,'restore',project,'-r','win-x64','--locked-mode','--source','https://api.nuget.org/v3/index.json'],env)
     run([args.dotnet,'run','--project','Windows/VELIN.Core.Tests/VELIN.Core.Tests.csproj','-c','Release'],env)

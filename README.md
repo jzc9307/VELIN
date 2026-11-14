@@ -70,6 +70,8 @@ Every published version keeps its own macOS and available Windows links. Newest 
 
 ## New in v0.2.1
 
+- **Updates inside VELIN.** A launch check, sidebar update card and download-progress screen lead to a verified download and restart. Install this updater-capable version once; future releases need the [signed update assets](docs/UPDATES.md).
+
 - Scroll up through the full floating conversation; current reply actions stay at the bottom.
 - In **Next step**, use **Yes, continue** to generate the detail it offers.
 - Choose optional Soniox cloud speech for mixed-language recognition with your own speech API key. Audio goes to Soniox only from controls you explicitly start after enabling it; usage is billed by Soniox.

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Version and release tooling. See docs/GITHUB.md before publishing."""
-import argparse, hashlib, json, pathlib, plistlib, re, subprocess, sys, tempfile, zipfile, shutil
+import argparse, base64, hashlib, json, pathlib, plistlib, re, subprocess, sys, tempfile, zipfile, shutil
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 def run(args, cwd=ROOT):
     return subprocess.check_output(args, cwd=cwd, text=True).strip()
@@ -24,6 +24,10 @@ def check():
     info=plistlib.loads((ROOT/'Resources/Info.plist').read_bytes())
     assert info['CFBundleShortVersionString']==v and info['CFBundleVersion']==build, 'App metadata is out of sync'
     assert any(x['version']==v for x in catalog()), 'Current version missing from catalog'
+    public=(ROOT/'Resources/UpdatePublicKey.txt').read_text().strip()
+    raw=base64.b64decode(public,validate=True)
+    assert len(raw)==65 and raw[0]==4, 'Invalid update verification key'
+    assert ('static let publicKey = '+json.dumps(public)) in (ROOT/'Sources/UpdateTrust.swift').read_text(), 'Mac and Windows update verification keys differ'
     print(f'VELIN {v} (build {build})')
 def prepare(bump='patch'):
     pending=ROOT/'.release/prepared.json'
@@ -80,7 +84,7 @@ def package():
             if pathlib.Path(name).name!=name or hashlib.sha256((export/name).read_bytes()).hexdigest()!=digest:raise SystemExit('Existing package checksum mismatch. Inspect the archive before proceeding.')
         print('Reusing verified package: '+str(export));return
     if out.exists():
-        allowed=lambda p:p.is_file() and (p.name in ('SHA256SUMS.txt','manifest.json','NOTES.md') or re.fullmatch(r'VELIN-[0-9.]+-(?:macOS-arm64|Windows-x64|source)\.(?:zip|dmg|exe)',p.name))
+        allowed=lambda p:p.is_file() and (p.name in ('SHA256SUMS.txt','manifest.json','NOTES.md','VELIN-update.json') or re.fullmatch(r'VELIN-[0-9.]+-(?:macOS-arm64|Windows-x64|source)\.(?:zip|dmg|exe)',p.name))
         if not all(allowed(p) for p in out.iterdir()):raise SystemExit('Unexpected release-staging files; review them before packaging.')
         shutil.rmtree(out)
     out.mkdir(parents=True)
@@ -104,9 +108,10 @@ def package():
         shutil.copy2(exe,out/f'VELIN-{v}-Windows-x64.exe')
         with zipfile.ZipFile(out/f'VELIN-{v}-Windows-x64.zip','w',zipfile.ZIP_DEFLATED) as archive:
             for name in ['VELIN.exe','VelinSpeech.exe','WHISPER-LICENSE.txt','WINDOWS.md','THIRD-PARTY-NOTICES.txt','LICENSE.txt']:archive.write(build_dir/name,'VELIN/'+name)
+    run([sys.executable,str(ROOT/'scripts/generate-update.py'),str(out)])
     sums=[]
     for p in sorted(out.iterdir()):
-        if p.suffix in ('.zip','.dmg','.exe'):sums.append(hashlib.sha256(p.read_bytes()).hexdigest()+'  '+p.name)
+        if p.suffix in ('.zip','.dmg','.exe') or p.name=='VELIN-update.json':sums.append(hashlib.sha256(p.read_bytes()).hexdigest()+'  '+p.name)
     (out/'SHA256SUMS.txt').write_text('\n'.join(sums)+'\n')
     (out/'manifest.json').write_text(json.dumps({'version':v,'build':(ROOT/'BUILD_NUMBER').read_text().strip(),'commit':run(['git','rev-parse','HEAD']),'platforms':['macOS-arm64','Windows-x64-preview'],'windows_runtime_tested':False},indent=2)+'\n')
     entry=next(x for x in catalog() if x['version']==v)
@@ -137,7 +142,7 @@ def publish(dry=False):
         notes=out/'NOTES.md';notes.write_text(entry.get('notes','Initial VELIN release.'))
         run(['gh','release','create',tag,'--draft','--title',f'VELIN {v}','--notes-file',str(notes)])
     elif not json.loads(result.stdout)['isDraft']:raise SystemExit('Release already published. Inspect it before proceeding; assets were not overwritten.')
-    assets=[str(p) for p in out.iterdir() if p.suffix in ('.dmg','.zip','.exe') or p.name=='SHA256SUMS.txt']
+    assets=[str(p) for p in out.iterdir() if p.suffix in ('.dmg','.zip','.exe') or p.name in ('SHA256SUMS.txt','VELIN-update.json')]
     existing=json.loads(run(['gh','release','view',tag,'--json','assets']))['assets'];names={a['name'] for a in existing}
     for asset in assets:
         if pathlib.Path(asset).name not in names:run(['gh','release','upload',tag,asset])

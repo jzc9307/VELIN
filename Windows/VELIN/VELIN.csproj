@@ -11,6 +11,8 @@
     <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
     <DebugType>none</DebugType><RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
   </PropertyGroup>
+  <ItemGroup><EmbeddedResource Include="../../Resources/UpdatePublicKey.txt" LogicalName="UpdatePublicKey" /></ItemGroup>
+  <ItemGroup Condition="Exists('$(MSBuildThisFileDirectory)obj/worker/ReleaseNotes.json')"><EmbeddedResource Include="obj/worker/ReleaseNotes.json" LogicalName="ReleaseNotes" /></ItemGroup>
   <ItemGroup><ProjectReference Include="../VELIN.Core/VELIN.Core.csproj" /></ItemGroup>
   <ItemGroup><PackageReference Include="NAudio" Version="2.2.1" /><PackageReference Include="System.Speech" Version="10.0.14" /></ItemGroup>
   <ItemGroup Condition="Exists('$(MSBuildThisFileDirectory)obj/worker/VelinSpeech.exe')"><EmbeddedResource Include="obj/worker/VelinSpeech.exe" LogicalName="VelinSpeech.exe" /></ItemGroup>

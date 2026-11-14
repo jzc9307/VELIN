@@ -1,3 +1,11 @@
+# v0.2.1 build 7 · updater verification
+
+The Mac suite passes 150 checks: 91 core/transport/geometry, 5 release, 41 profile/audio/workflow and 13 native signature/version/network/hash/transactional replacement checks. The Windows shared-core suite has 82 checks, including 4 update checks. The profile suite includes flushing session/configuration before update restart. Three signed credential IPC checks remain separate; the credential component is unchanged. A Swift-generated P-256 fixture also verifies in .NET, and tampering is rejected. The signed Mac installer helper validates a separately signed newer app ZIP and the current target identity using an isolated `--verify-only` fixture; no installed user app or data is replaced in that test.
+
+Launch checks use only the fixed public GitHub release endpoint and bounded requests. UI checks cover the launch screen, sidebar card and progress screen using an isolated no-network preview; an isolated real-network probe also confirmed installed v0.2.1 build 7 versus public v0.2.0, correctly reporting the local build as newer. The installed build still needs its final About/refresh UI check. Windows updater/UI/restart remains cross-compiled and core-tested only. No customer old-to-new public release upgrade is claimed.
+
+---
+
 # v0.2.1 verification
 
 Mac standard suite: 136 checks (91 core/transport/geometry, 5 release and 40 profile/audio checks). Windows shared-core: 78 checks. The native cloud client is exercised against an actual loopback WebSocket server with a fake key, text configuration, converted PCM frames and synthetic mixed-script partial/final tokens; no cloud API or private audio is used. Tests also verify continuation appends to history and protects unsent drafts, distinct mode policies, and model hash corruption rejection. Three signed credential isolation checks pass separately. Native Mac UI checks confirmed one-line Behavioral Interview/Listen controls, single capsule reply styling, earlier turns accessible by scrolling upward while actions stay fixed, and installed Base displayed as a disabled Selected action. Cloud settings show a separate key and default-off consent; no live cloud request was made.

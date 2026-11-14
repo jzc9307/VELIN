@@ -25,6 +25,7 @@ struct MainView: View {
                 }
             }
         }.background(Ink.sidebar).foregroundStyle(.white.opacity(0.92)).preferredColorScheme(.dark).scrollIndicators(.hidden)
+            .overlay { UpdatePresentation(updates: model.updates) }
             .overlay(alignment: .bottom) {
                 if !model.notice.isEmpty {
                     HStack { Text(model.notice).font(.system(size: 12)); Button { model.notice = "" } label: { Image(systemName: "xmark") }.buttonStyle(.plain) }
@@ -56,6 +57,7 @@ struct MainView: View {
             Spacer(minLength: 16)
             nav("Tutorial", "play.rectangle")
             nav("About", "info.circle")
+            UpdateCard(updates: model.updates, busy: model.recording || model.startingAudio || model.dictating || model.startingDictation || model.generating || !model.prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || model.pendingImage != nil)
             HStack(spacing: 9) { Circle().fill(model.activeProfile == nil ? Ink.muted : Ink.mint).frame(width: 6, height: 6); VStack(alignment: .leading, spacing: 4) { Text(model.activeProfile?.provider.rawValue ?? "No AI connected").font(.system(size: 11, weight: .medium)); Text(model.activeProfile?.model ?? "Add your first connection").font(.system(size: 10)).foregroundStyle(Ink.muted).lineLimit(1) } }.padding(14).frame(maxWidth: .infinity, alignment: .leading).background(.white.opacity(0.025), in: RoundedRectangle(cornerRadius: 11)).padding(14)
         }.frame(minHeight: geometry.size.height, alignment: .top) }.scrollIndicators(.hidden) }.background(Ink.sidebar)
     }
@@ -72,7 +74,7 @@ struct MainView: View {
         case "Audio & Permissions": AudioSettingsView(model: model)
         case "Privacy": PrivacyView(model: model)
         case "Tutorial": TutorialView(model: model)
-        default: AboutView()
+        default: AboutView(model: model)
         }
     }
 }

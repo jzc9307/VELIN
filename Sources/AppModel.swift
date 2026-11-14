@@ -7,6 +7,7 @@ import UniformTypeIdentifiers
 import ScreenCaptureKit
 
 @MainActor final class AppModel: ObservableObject {
+    let updates = AppUpdates()
     @Published var config = Configuration()
     @Published var sessions: [Session] = []
     @Published var session = Session()
@@ -360,5 +361,13 @@ import ScreenCaptureKit
         }
     }
     func revealData() { NSWorkspace.shared.open(store.root) }
+    func prepareForUpdate() throws {
+        guard loadedSafely, !recording, !startingAudio, !dictating, !startingDictation, !generating else { throw VelinError.message("Stop audio and finish the answer before updating. Local data must be readable before restarting.") }
+        var next = sessions
+        if hasSession { if let index = next.firstIndex(where: { $0.id == session.id }) { next[index] = session } else { next.insert(session, at: 0) } }
+        try store.save(next, name: "sessions.json")
+        try store.save(config, name: "settings.json")
+        sessions = next
+    }
     func terminate() async { task?.cancel(); testTask?.cancel(); await stopListening(); await stopDictation(); persistSession(); saveConfig() }
 }

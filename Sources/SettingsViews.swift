@@ -295,7 +295,7 @@ struct PrivacyView: View {
                 Button("Open local data folder") { model.revealData() }.buttonStyle(Press())
                 Divider()
                 Label("When you ask AI", systemImage: "arrow.up.forward.circle").font(.system(size: 16, weight: .medium)).foregroundStyle(Ink.lilac)
-                Text("Your question, recent conversation, transcript context, custom instructions, and attached documents go to your active chat provider. If you explicitly select and enable Soniox cloud speech, started Listen/Mic audio streams to Soniox separately; offline speech does not upload audio. A screenshot is sent only when attached to that question. Screenshots are not saved to history. Provider processing and retention policies still apply.").font(.system(size: 13)).foregroundStyle(Ink.muted).lineSpacing(5)
+                Text("Your question, recent conversation, transcript context, custom instructions, and attached documents go to your active chat provider. If you explicitly select and enable Soniox cloud speech, started Listen/Mic audio streams to Soniox separately; offline speech does not upload audio. A screenshot is sent only when attached to that question. Screenshots are not saved to history. Provider processing and retention policies still apply. At launch, the update checker contacts public GitHub Releases without sending your keys or conversation context.").font(.system(size: 13)).foregroundStyle(Ink.muted).lineSpacing(5)
                 Text("Current destination: \(model.endpointHost)").font(.system(size: 11, weight: .medium)).foregroundStyle(Ink.mint)
             } }
             Card { VStack(alignment: .leading, spacing: 16) {
@@ -309,6 +309,33 @@ struct PrivacyView: View {
     }
 }
 struct AboutView: View {
-    var body: some View { ScrollView { VStack(alignment: .leading, spacing: 24) { SectionHeading(title: "VELIN", subtitle: "A quieter kind of clarity."); Card { HStack(spacing: 30) { VelinMark().frame(width: 84, height: 84); VStack(alignment: .leading, spacing: 10) { Text("Your context. Your AI. Your Mac.").font(.system(size: 22, weight: .regular, design: .serif)); Text("Version \(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0.1.0") · Native SwiftUI & AppKit · Apple Silicon").font(.system(size: 12)).foregroundStyle(Ink.muted); Text("Built independently. Cluely was used as a workflow reference; no Cluely code, services, or branding are bundled.").font(.system(size: 12)).foregroundStyle(Ink.muted).lineSpacing(4) } } }; Card { VStack(alignment: .leading, spacing: 16) { Text("Always within reach").font(.system(size: 16, weight: .medium)); shortcut("Show / hide assistant", "⌃ ⌥ Space"); shortcut("Move visible assistant", "⌘ + Arrow keys"); shortcut("Ask from conversation", "⌃ ⌥ Return"); shortcut("Start / stop listening", "⌃ ⌥ L"); shortcut("Attach screenshot", "⌃ ⌥ S"); Text("Global shortcuts use macOS hotkey registration and do not require Accessibility access. Escape closes the assistant. Press ⌘, to open AI connections.").font(.system(size: 11)).foregroundStyle(Ink.muted) } }; Card { VStack(alignment: .leading, spacing: 10) { Text("Independent, early software").font(.system(size: 15, weight: .medium)); Text("Model access, recognition language support, and capture exclusion depend on your provider and system. Developer ID signing and Apple notarization are needed before broad distribution.").font(.system(size: 12)).foregroundStyle(Ink.muted).lineSpacing(4) } } }.padding(32) } }
+    @ObservedObject var model: AppModel
+    var body: some View {
+        ScrollView { VStack(alignment: .leading, spacing: 20) {
+            SectionHeading(title: "About VELIN", subtitle: "A quieter kind of clarity.")
+            Card { HStack(spacing: 22) {
+                VelinMark().frame(width: 58, height: 58)
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Your context. Your AI. Your Mac.").font(.system(size: 22, weight: .regular, design: .serif))
+                    Text("Native SwiftUI & AppKit · Apple Silicon").font(.system(size: 12)).foregroundStyle(Ink.muted)
+                    Text("Free and open source. No VELIN subscription.").font(.system(size: 12)).foregroundStyle(Ink.mint)
+                }
+            } }
+            AboutUpdateStatus(updates: model.updates, busy: model.recording || model.startingAudio || model.dictating || model.startingDictation || model.generating || !model.prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || model.pendingImage != nil)
+            Card { VStack(alignment: .leading, spacing: 13) {
+                Label("What’s new in v" + model.updates.currentVersion, systemImage: "sparkles").font(.system(size: 16, weight: .semibold))
+                Text(.init(model.updates.currentReleaseNotes)).font(.system(size: 12)).foregroundStyle(Ink.muted).lineSpacing(4).textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
+            } }
+            Card { VStack(alignment: .leading, spacing: 16) {
+                Text("Always within reach").font(.system(size: 16, weight: .medium))
+                shortcut("Show / hide assistant", "⌃ ⌥ Space"); shortcut("Move visible assistant", "⌘ + Arrow keys"); shortcut("Ask from conversation", "⌃ ⌥ Return"); shortcut("Start / stop listening", "⌃ ⌥ L"); shortcut("Attach screenshot", "⌃ ⌥ S")
+                Text("Global shortcuts use macOS hotkey registration and do not require Accessibility access. Escape closes the assistant. Press ⌘, to open AI connections.").font(.system(size: 11)).foregroundStyle(Ink.muted)
+            } }
+            Card { VStack(alignment: .leading, spacing: 10) {
+                Text("Independent, early software").font(.system(size: 15, weight: .medium))
+                Text("Built independently. Cluely was a workflow reference; no Cluely code, services or branding are bundled. Developer ID signing and Apple notarization are not configured for this local build. Provider models, speech accuracy and capture exclusion depend on your provider and system.").font(.system(size: 12)).foregroundStyle(Ink.muted).lineSpacing(4)
+            } }
+        }.padding(28) }.defaultScrollAnchor(.top).id("VELINAbout")
+    }
     func shortcut(_ label: String, _ keys: String) -> some View { HStack { Text(label).font(.system(size: 12)); Spacer(); Text(keys).font(.system(size: 12, design: .monospaced)).foregroundStyle(Ink.mint) } }
 }

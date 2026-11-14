@@ -13,7 +13,7 @@ The inner `Project/VELIN/VELIN` folder is the source repository. Open that folde
 1. Open your repository’s **Releases → Draft a new release**.
 2. Create the tag **vX.Y.Z** using the version in `VERSION`, targeting the pushed main commit. Use **VELIN X.Y.Z** as its title.
 3. Paste `outputs/vX.Y.Z/NOTES.md` into the description.
-4. Attach `VELIN-X.Y.Z-macOS-arm64.dmg`, `VELIN-X.Y.Z-macOS-arm64.zip`, `VELIN-X.Y.Z-source.zip`, `VELIN-X.Y.Z-Windows-x64.exe`, `VELIN-X.Y.Z-Windows-x64.zip`, and `SHA256SUMS.txt`. `manifest.json` records the exact packaged source commit for your reference.
+4. Attach `VELIN-X.Y.Z-macOS-arm64.dmg`, `VELIN-X.Y.Z-macOS-arm64.zip`, `VELIN-X.Y.Z-source.zip`, `VELIN-X.Y.Z-Windows-x64.exe`, `VELIN-X.Y.Z-Windows-x64.zip`, **`VELIN-update.json`**, and `SHA256SUMS.txt`. The Mac app ZIP and signed descriptor are required for in-app updates; uploading only DMG/EXE is no longer sufficient. `manifest.json` records the exact packaged source commit for your reference.
 5. Mark a normal release **Latest** and publish when ready. Keep earlier releases and their downloads intact.
 6. Give the actual published release URL to your coding agent so it can verify the assets, add the real DMG and Windows EXE links to the main README, synchronize `docs/RELEASES.md` / `release-history.json`, and complete the prepared-release record. Until then the README correctly marks it prepared and unpublished.
 
@@ -59,3 +59,7 @@ The release preparation step updates VERSION, BUILD_NUMBER, the app plist and th
 The local multilingual model weights are never uploaded with source or release assets. The EXE embeds the worker; the Windows ZIP includes its executable and license as well.
 
 The Windows build remains labeled **preview** until its audio/UI behavior is actually tested on Windows. Do not change this label merely because the release is published. The same VERSION / BUILD_NUMBER drives the Mac plist and Windows file metadata. Run `python scripts/build-windows.py` **after committing** the release source and before `package`, so its recorded commit matches the source archive.
+
+## In-app update publication
+
+Follow [the updater guide](UPDATES.md). Keep `VELIN-update.json` and the versioned app ZIP/EXE unchanged after packaging. Upload every asset before publishing a stable release as Latest; the startup checker does not use source pushes or draft releases. Users need the updater-capable v0.2.1 build 7 installed once.

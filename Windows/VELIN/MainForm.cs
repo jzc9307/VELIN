@@ -5,29 +5,52 @@ namespace Velin.Windows;
 internal sealed class MainForm : Form
 {
     readonly Controller state;
+    readonly Panel updateCard = new() { Width=164, Height=136, BackColor=Theme.Surface };
+    readonly Label updateTitle = Theme.Label("Check for updates",11,Theme.Mint), updateDetail = Theme.Label("",9,Theme.Muted);
+    readonly ClickButton updateButton;
+    readonly UpdateScreen updateScreen;
     readonly Panel body = new() { Dock = DockStyle.Fill, BackColor = Theme.Background };
     readonly FlowLayoutPanel navigation = new() { Dock = DockStyle.Left, Width = 190, FlowDirection = FlowDirection.TopDown, WrapContents = false, Padding = new Padding(12, 18, 12, 12), BackColor = Theme.Sidebar };
     string page = "Overview";
     TextBox? conversation, transcript, notes, status;
+    Label? aboutVersionStatus,aboutLatest,aboutChecked;
+    ClickButton? aboutRefresh,aboutDownload;
     ClickButton? listenControl, micControl;
     readonly List<Control> speechSettings = [];
     public MainForm(Controller state)
     {
         this.state = state; Text = "VELIN"; ClientSize = new Size(920, 680); MinimumSize = new Size(800, 560); StartPosition = FormStartPosition.CenterScreen; BackColor = Theme.Background; ForeColor = Color.White; Font = Theme.Font(); Icon = Icon.ExtractAssociatedIcon(Environment.ProcessPath!);
-        Controls.Add(body); Controls.Add(navigation);
+        var side=new Panel{Dock=DockStyle.Left,Width=190,BackColor=Theme.Sidebar};navigation.Dock=DockStyle.Fill;navigation.AutoScroll=true;side.Controls.Add(navigation);
+        var footer=new Panel{Dock=DockStyle.Bottom,Height=208,BackColor=Theme.Sidebar};updateCard.Location=new Point(12,8);footer.Controls.Add(updateCard);side.Controls.Add(footer);footer.BringToFront();Controls.Add(body);Controls.Add(side);
+        updateTitle.AutoSize=false;updateTitle.SetBounds(11,10,142,34);updateDetail.AutoSize=false;updateDetail.SetBounds(11,46,142,34);updateCard.Controls.Add(updateTitle);updateCard.Controls.Add(updateDetail);
+        updateButton=new ClickButton("Check now",()=>Run(()=>state.Updates.Available==null?state.Updates.Check():state.Updates.DownloadAndRestart()),true);updateButton.SetBounds(10,89,144,34);updateCard.Controls.Add(updateButton);
+        var providerCard=Theme.Label((state.Active?.Provider??"No AI connected")+"\n"+(state.Active?.Model??"Add your first connection"),10,Theme.Muted);providerCard.AutoSize=false;providerCard.SetBounds(22,155,150,43);footer.Controls.Add(providerCard);
+        updateScreen=new UpdateScreen(state.Updates);Controls.Add(updateScreen);updateScreen.BringToFront();state.Updates.Changed+=RefreshUpdates;
+        state.Updates.CanRestart=()=>!state.Listening&&!state.AudioBusy&&!state.MicActive&&!state.MicBusy&&!state.Generating&&string.IsNullOrWhiteSpace(state.Prompt)&&state.Image==null;
+        state.Updates.PrepareRestart=()=>{state.SaveSession();state.SaveConfig();};
+        state.Updates.Restart=()=>{state.Quitting=true;state.SaveSession();Application.Exit();};
         navigation.Controls.Add(Theme.Label("V E L I N", 19, Theme.Mint)); navigation.Controls.Add(Theme.Label("Free. Your AI, your choice.", 9, Theme.Muted));
         foreach (var item in new[] { "Overview", "Conversation", "History", "AI Connections", "Personalization", "Audio & Permissions", "Privacy", "About" }) { var name = item; var button = new ClickButton(name, () => OpenPage(name)) { Width = 164, Height = 38 }; navigation.Controls.Add(button); }
         navigation.Controls.Add(new ClickButton("Open assistant", () => state.Overlay?.Reveal(), true) { Width = 164 });
         navigation.Controls.Add(new ClickButton("Quit VELIN", Quit) { Width = 164 });
-        state.Changed += RefreshState; Shown += (_, _) => { OpenPage("Overview"); state.Overlay?.Reveal(); };
+        state.Changed += RefreshState; Shown += async (_, _) => { OpenPage("Overview"); RefreshUpdates(); await state.Updates.Check(); };
         FormClosing += (_, e) => { if (!state.Quitting) { e.Cancel = true; Hide(); state.Overlay?.Reveal(); } };
+    }
+    void RefreshUpdates()
+    {
+        if(IsDisposed)return;var updates=state.Updates;updateTitle.Text=updates.Available==null?updates.Checking?"Checking…":"VELIN updates":"New version · "+updates.Available.Version;updateDetail.Text=updates.Failure??(updates.Available==null?updates.Status:"A little more clarity is ready.");updateButton.Text=updates.Available==null?"Check now":updates.Ready?"Install & restart":"Download & restart";updateButton.Enabled=!updates.Checking&&!updates.Downloading&&(updates.Available==null||updates.CanRestart());updateScreen.Visible=updates.Launching||updates.PresentingDownload;if(updateScreen.Visible)updateScreen.BringToFront();
+        if(aboutVersionStatus!=null)aboutVersionStatus.Text=updates.VersionStatus;
+        if(aboutLatest!=null)aboutLatest.Text=updates.LatestPublishedVersion==null?"Latest public version: unknown":"Latest on GitHub: v"+updates.LatestPublishedVersion+(updates.LatestPublishedBuild is int build?" · Build "+build:"");
+        if(aboutChecked!=null)aboutChecked.Text=updates.Failure??(updates.LastChecked is DateTime checkedAt?"Last checked "+checkedAt.ToString("g"):"Refresh to check GitHub Releases.");
+        if(aboutRefresh!=null)aboutRefresh.Enabled=!updates.Checking&&!updates.Downloading&&!updates.Ready;
+        if(aboutDownload!=null){aboutDownload.Visible=updates.Available!=null;aboutDownload.Text=updates.Ready?"Install & restart":"Download & restart";aboutDownload.Enabled=!updates.Downloading&&updates.CanRestart();}
     }
     void Quit() { state.Quitting = true; Application.Exit(); }
     void Safe(Action action) { try { action(); } catch (Exception e) { state.SetError(e.Message); MessageBox.Show(this, e.Message, "VELIN", MessageBoxButtons.OK, MessageBoxIcon.Information); } }
     async void Run(Func<Task> action) { try { await action(); } catch (Exception e) { state.SetError(e.Message); } }
     FlowLayoutPanel Page(string title, string subtitle)
     {
-        conversation = transcript = notes = status = null; listenControl = micControl = null; speechSettings.Clear(); foreach (Control old in body.Controls.Cast<Control>().ToArray()) old.Dispose(); body.Controls.Clear(); var flow = Theme.Column(); body.Controls.Add(flow);
+        conversation = transcript = notes = status = null; aboutVersionStatus=aboutLatest=aboutChecked=null;aboutRefresh=aboutDownload=null; listenControl = micControl = null; speechSettings.Clear(); foreach (Control old in body.Controls.Cast<Control>().ToArray()) old.Dispose(); body.Controls.Clear(); var flow = Theme.Column(); body.Controls.Add(flow);
         flow.ControlAdded += (_, e) => { if (e.Control != null) e.Control.Width = Math.Max(100, flow.ClientSize.Width - 56); }; flow.SizeChanged += (_, _) => { foreach (Control c in flow.Controls) c.Width = Math.Max(100, flow.ClientSize.Width - 56); };
         flow.Controls.Add(Theme.Label(title, 22)); flow.Controls.Add(Wrap(subtitle, Theme.Muted)); return flow;
     }
@@ -133,12 +156,20 @@ internal sealed class MainForm : Form
         var flow = Page("You’re in control.", "Only start Listen when you intend to capture audio. Screenshots are attached for review and are sent only when you explicitly ask."); flow.Controls.Add(Wrap("API keys: Windows Credential Manager, scoped to your Windows account.\nSessions: %LOCALAPPDATA%\\VELIN. No separate session encryption.\nAI: relevant transcript, chat, instructions and screenshot go to your selected provider when you ask. Provider terms apply. Optional Soniox cloud speech sends audio from started controls to Soniox separately; offline engines do not upload audio."));
         var protect = new CheckBox { Text = "Request exclusion from supported Windows capture APIs", AutoSize = true, ForeColor = Color.White, Checked = state.Config.CaptureProtection }; protect.CheckedChanged += (_, _) => Safe(() => { state.Config.CaptureProtection = protect.Checked; state.SaveConfig(); }); flow.Controls.Add(protect); flow.Controls.Add(Wrap("Capture exclusion is best effort, not universal invisibility. Some sharing tools, cameras, remote sessions and exclusive full-screen apps behave differently. The preview keeps a tray icon and Ctrl+Alt+Space recovery.", Theme.Muted));
     }
-    void About() { var flow = Page("VELIN · Windows preview", $"Version {Application.ProductVersion.Split('+')[0]} · Windows x64 · Free and open source"); flow.Controls.Add(Wrap("Original VELIN code and artwork · MIT license. No VELIN account or subscription. AI provider charges may apply.\n\nThis Windows build was cross-compiled on macOS. Live Windows audio, focus, capture, packaging and antivirus acceptance still need testing on Windows. It is unsigned.")); flow.Controls.Add(new ClickButton("Licenses and notices", ShowLicenses)); }
+    void About()
+    {
+        var flow=Page("About VELIN",$"Installed v{AppUpdates.Version} · Build {AppUpdates.Build} · Windows x64 preview");
+        flow.Controls.Add(Wrap("Free and open source. No VELIN subscription.",Theme.Mint));
+        aboutVersionStatus=Wrap(state.Updates.VersionStatus,Theme.Mint);flow.Controls.Add(aboutVersionStatus);aboutLatest=Wrap("",Theme.Muted);flow.Controls.Add(aboutLatest);aboutChecked=Wrap("",Theme.Muted);flow.Controls.Add(aboutChecked);
+        var actions=Theme.Row();aboutRefresh=new ClickButton("Refresh",()=>Run(state.Updates.Check));actions.Controls.Add(aboutRefresh);aboutDownload=new ClickButton("Download & restart",()=>Run(state.Updates.DownloadAndRestart),true);actions.Controls.Add(aboutDownload);flow.Controls.Add(actions);
+        flow.Controls.Add(Theme.Label("What’s new in v"+AppUpdates.Version,16,Theme.Mint));flow.Controls.Add(Wrap(AppUpdates.CurrentReleaseNotes,Theme.Muted));
+        flow.Controls.Add(Wrap("Original VELIN code and artwork · MIT license. Provider charges may apply. This Windows build was cross-compiled on macOS. Windows live audio, focus, update/restart and antivirus acceptance still need testing on Windows. It is unsigned.",Theme.Muted));flow.Controls.Add(new ClickButton("Licenses and notices",ShowLicenses));RefreshUpdates();
+    }
     void ShowLicenses() { using var stream = typeof(MainForm).Assembly.GetManifestResourceStream("ThirdPartyNotices"); if (stream == null) { state.SetError("Use the release ZIP for the license notices."); return; } using var reader = new StreamReader(stream); using var window = new Form { Text = "VELIN · Licenses and notices", Size = new Size(760, 560), BackColor = Theme.Background, StartPosition = FormStartPosition.CenterParent }; var text = Theme.Input(reader.ReadToEnd(), true); text.Dock = DockStyle.Fill; text.ReadOnly = true; text.ScrollBars = ScrollBars.None; window.Controls.Add(text); window.ShowDialog(this); }
     void Export() => Safe(() => { using var picker = new SaveFileDialog { Filter = "Markdown|*.md", FileName = "VELIN-session.md" }; if (picker.ShowDialog(this) == DialogResult.OK) File.WriteAllText(picker.FileName, state.Session.Markdown()); });
     void RefreshState()
     {
-        if (IsDisposed || !Visible) return; Text = "VELIN · " + page;
+        if (IsDisposed || !Visible) return; RefreshUpdates(); Text = "VELIN · " + page;
         if (listenControl != null) { listenControl.Text = state.AudioBusy ? "Connecting…" : state.Listening ? "Stop Listen" : "Start Listen"; listenControl.Enabled = !state.AudioBusy; listenControl.Primary = state.Listening; }
         if (micControl != null) { micControl.Text = state.MicBusy ? "Starting…" : state.MicActive ? "Stop Mic" : "Start Mic"; micControl.Enabled = !state.MicBusy; micControl.Primary = state.MicActive; }
         foreach (var control in speechSettings) control.Enabled = !(state.Listening || state.AudioBusy || state.MicActive || state.MicBusy);
@@ -146,5 +177,5 @@ internal sealed class MainForm : Form
         void Set(TextBox? box, string text) { if (box != null && box.Text != text) { var caret = box.SelectionStart; box.Text = text; box.SelectionStart = Math.Min(caret, text.Length); } }
         Set(conversation, string.Join("\r\n\r\n", state.Session.Messages.Select(m => (m.Role == "user" ? "You" : "VELIN") + ": " + m.Text))); Set(transcript, string.Join("\r\n", state.Session.Transcript.Select(t => t.Source + ": " + t.Text))); if (state.Generating) Set(notes, state.Session.Notes); Set(status, state.Status + "\r\n" + state.Error + "\r\nMic: " + state.MicStatus);
     }
-    protected override void Dispose(bool disposing) { if (disposing) state.Changed -= RefreshState; base.Dispose(disposing); }
+    protected override void Dispose(bool disposing) { if (disposing) { state.Changed -= RefreshState; state.Updates.Changed-=RefreshUpdates; } base.Dispose(disposing); }
 }

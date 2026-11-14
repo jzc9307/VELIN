@@ -6,6 +6,7 @@ namespace Velin.Windows;
 
 internal sealed class Controller : IDisposable
 {
+    public AppUpdates Updates {get;}=new();
     public Settings Config { get; }
     public List<Session> Sessions { get; }
     public Session Session { get; private set; } = new();
@@ -143,5 +144,5 @@ internal sealed class Controller : IDisposable
         catch (Exception e) { Error = e.Message; }
         finally { if (response != null) { var parsed = ReplyPackage.Parse(raw.ToString(), true); response.Text = parsed.Answer; response.Extras = parsed.Extras; if (response.Text.Length == 0) Session.Messages.Remove(response); } Generating = false; SaveSession(); Notify(); }
     }
-    public void Dispose() { answer?.Cancel(); audio.Dispose(); micAudio.Dispose(); SaveSession(); }
+    public void Dispose() { Updates.Dispose(); answer?.Cancel(); audio.Dispose(); micAudio.Dispose(); SaveSession(); }
 }

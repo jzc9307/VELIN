@@ -27,3 +27,7 @@ Suggested description: “A free, open-source macOS and Windows personal AI work
 Suggested topics: macos, windows, dotnet, winforms, swift, swiftui, appkit, ai-assistant, meeting-notes, speech-recognition, screen-capture, bring-your-own-key, apple-silicon.
 
 The repository owner's avatar is separate from the app logo and README. `Resources/icon.png` is the app/avatar artwork; docs/assets/readme-banner.svg is the original banner. Setting a profile avatar or repository visibility is a separate user choice.
+
+## Signed in-app updates
+
+Packaging now generates a signed `VELIN-update.json` using the approved local Keychain signing tool. Publish it with the Mac app ZIP and Windows EXE, in addition to the normal release files. See [in-app updates](UPDATES.md) for the exact workflow, installation safety and signing continuity. Do not commit private update key material.

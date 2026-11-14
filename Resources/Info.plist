@@ -17,7 +17,7 @@
 	<key>CFBundleShortVersionString</key>
 	<string>0.2.1</string>
 	<key>CFBundleVersion</key>
-	<string>6</string>
+	<string>7</string>
 	<key>LSMinimumSystemVersion</key>
 	<string>14.0</string>
 	<key>LSMultipleInstancesProhibited</key>
@@ -32,7 +32,7 @@
 	<key>NSHighResolutionCapable</key>
 	<true/>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>VELIN transcribes your microphone only when you start listening.</string>
+	<string>VELIN dictates microphone speech only when you start Mic.</string>
 	<key>NSScreenCaptureUsageDescription</key>
 	<string>VELIN captures computer audio during sessions and takes screenshots only when you request them.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>

@@ -1,0 +1,5 @@
+import Foundation
+
+enum UpdateTrust {
+    static let publicKey = "BNz4JR0KjKn+7h6CRKVc8yeMdktfHSbSEnsw1NVjlRCLL0jSeWk2RyEc0OysELEZ7lZ62nBOI2G1R/n/r9/ZvWA="
+}

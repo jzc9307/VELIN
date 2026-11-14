@@ -4,7 +4,7 @@ spec=importlib.util.spec_from_file_location('release',ROOT/'scripts/release.py')
 class Releases(unittest.TestCase):
     def setUp(self):
         self.temp=tempfile.TemporaryDirectory();self.addCleanup(self.temp.cleanup);self.root=pathlib.Path(self.temp.name)
-        for name in ['VERSION','BUILD_NUMBER','README.md','CHANGELOG.md','release-history.json','Resources/Info.plist']:
+        for name in ['VERSION','BUILD_NUMBER','README.md','CHANGELOG.md','release-history.json','Resources/Info.plist','Resources/UpdatePublicKey.txt','Sources/UpdateTrust.swift']:
             dest=self.root/name;dest.parent.mkdir(exist_ok=True);shutil.copy2(ROOT/name,dest)
         (self.root/'docs').mkdir();self.old=release.ROOT;release.ROOT=self.root;self.addCleanup(setattr,release,'ROOT',self.old)
     def test_metadata(self):release.check()

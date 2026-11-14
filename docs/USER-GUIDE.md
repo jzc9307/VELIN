@@ -107,3 +107,9 @@ Local multilingual now has **Country → Malaysia**, covering the English/Bahasa
 The floating answer area retains the whole session. A new turn starts at its question; scroll upward for earlier turns and downward through a long answer. Streaming never forces you to the bottom. Reply-view buttons stay below the scroll area. Answer/Say this/Next step/Explain more reveal prepared content; **Yes, continue** appears only in Next step and explicitly generates a new AI reply using that suggestion and conversation context. Send or clear a draft/screenshot first, so continuing cannot accidentally submit it.
 
 For optional cloud speech, choose Soniox in Audio & Permissions, save its separate API key, explicitly allow streaming and save settings. No local model download is needed. See [speech setup](LANGUAGES.md). Offline engines stay available.
+
+## Update VELIN
+
+VELIN checks public GitHub Releases during launch. If a signed newer release is available, a card appears above the provider card in the sidebar. Stop Listen/Mic and finish the current answer, then click **Download & restart**. You can cancel while downloading; failed verification preserves the current app. Settings, keys, history and models are retained. A writable installed app is required. See [update details](UPDATES.md).
+
+About shows your installed version/build, latest public release, last check time, and a Refresh action. Its What’s new section is bundled with the installed version for offline viewing. A local build ahead of the public release is labeled clearly, and a failed check never claims you are current.

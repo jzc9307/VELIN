@@ -245,7 +245,11 @@ final class Hotkeys {
                 // without activating VELIN or reopening an intentionally hidden bar.
                 self.panel.orderFrontRegardless()
             }.store(in: &subscriptions)
+        model.updates.canRestart = { [weak self] in guard let model = self?.model else { return false }; return !model.recording && !model.startingAudio && !model.dictating && !model.startingDictation && !model.generating && model.prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && model.pendingImage == nil }
+        model.updates.prepareRestart = { [weak self] in guard let self else { throw UpdateError.invalid("VELIN is no longer available for updating.") }; try self.model.prepareForUpdate() }
+        model.updates.restart = { NSApp.terminate(nil) }
         installMenus(); applyProtection()
+        model.updates.start()
         hotkeys.action = { [weak self] id in
             guard let self else { return }
             switch id {
