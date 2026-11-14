@@ -20,11 +20,14 @@ ditto "$SOURCE/Resources/Providers" "$APP/Contents/Resources/Providers"
 cp "$SOURCE/LICENSE" "$APP/Contents/Resources/LICENSE.txt"
 cp "$SOURCE/THIRD-PARTY.md" "$APP/Contents/Resources/THIRD-PARTY.md"
 ditto "$SOURCE/docs" "$APP/Contents/Resources/Guides"
+python3 "$SOURCE/scripts/build-speech.py" --destination "$APP/Contents/MacOS"
+mv "$APP/Contents/MacOS/WHISPER-LICENSE.txt" "$APP/Contents/Resources/WHISPER-LICENSE.txt"
 python3 "$SOURCE/scripts/build-credentials.py" "$APP" "$CACHE" "$MODE"
 if [ "$MODE" = "--check" ]; then
   echo 'App compiled and resources assembled. Validation only; no signing or installation.'
   exit 0
 fi
+python3 "$SOURCE/scripts/signing.py" sign "$APP/Contents/MacOS/VelinSpeech" --bundle-id app.velin.assistant.local-speech
 python3 "$SOURCE/scripts/signing.py" sign "$APP"
 codesign --verify --deep --strict "$APP"
 if [ "$MODE" = "--stage-only" ]; then

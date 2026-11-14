@@ -13,4 +13,5 @@
   </PropertyGroup>
   <ItemGroup><ProjectReference Include="../VELIN.Core/VELIN.Core.csproj" /></ItemGroup>
   <ItemGroup><PackageReference Include="NAudio" Version="2.2.1" /><PackageReference Include="System.Speech" Version="10.0.14" /></ItemGroup>
+  <ItemGroup Condition="Exists('$(MSBuildThisFileDirectory)obj/worker/VelinSpeech.exe')"><EmbeddedResource Include="obj/worker/VelinSpeech.exe" LogicalName="VelinSpeech.exe" /></ItemGroup>
 </Project>

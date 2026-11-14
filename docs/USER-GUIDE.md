@@ -85,3 +85,13 @@ After attaching a screenshot, the question field receives keyboard focus. Type t
 Click VELIN’s question field or live transcript editor before typing. The click activates VELIN and transfers keyboard ownership from the app underneath; the bar remains floating. Showing the bar alone still avoids explicitly activating VELIN. Screenshot attachment focuses the question field. Only Enter or Send submits a request; switching focus or opening menus does not.
 
 Meeting and provider menus use the same rounded hover border and background as the other compact controls.
+
+## v0.2.0: your background, your mode, your language
+
+Listen now starts with computer audio. The small mic button is optional; it adds your voice while Listen is running without restarting the meeting stream. The original both-input default migrates once, while later explicit mic choices remain saved. Stop Listen to stop capture; typed questions and Enter behavior stay the same.
+
+In Personalization, About me holds your real background across modes. Help me write it opens a local facts-only form (name, skills, qualifications, experience, goals and optional age). You review/use the result. The button does not call AI. If your biography was previously in Custom instructions, Move current instructions here transfers it into About me.
+
+Select a mode to edit its own instructions, response language and files. Your old instructions/files are preserved in the previously selected mode. They are not silently copied to every new mode. About me plus only the selected mode's context accompanies explicit AI questions/notes. Mac files include text/Markdown/JSON and text-based PDFs; the Windows preview imports text/Markdown/JSON.
+
+For Malay/Mandarin/English or Malaysian mixed speech, Audio & Permissions offers Local multilingual with a one-time model download. Recognition stays local, but buffering and mistakes remain possible. See [language setup and limits](LANGUAGES.md). The native fast engine remains available for one selected language. Merely choosing a language or downloading a model does not start Listen.

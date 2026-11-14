@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Build the self-contained Windows x64 preview. May cross-compile on macOS."""
-import argparse, hashlib, json, os, pathlib, shutil, subprocess
+import argparse, hashlib, json, os, pathlib, shutil, subprocess, platform, sys
 from windows_pe import inspect
 ROOT=pathlib.Path(__file__).resolve().parents[1]
 def run(args,env):subprocess.run(args,cwd=ROOT,env=env,check=True)
@@ -10,6 +10,11 @@ def main():
     workspace=ROOT.parent if (ROOT.parent/'.velin-workspace').exists() else ROOT/'dist'
     work=workspace/'work';out=work/'windows-x64.noindex';out.mkdir(parents=True,exist_ok=True)
     env=os.environ.copy();env.update(DOTNET_CLI_HOME=str(work/'dotnet-home'),NUGET_PACKAGES=str(work/'nuget'),DOTNET_CLI_TELEMETRY_OPTOUT='1',DOTNET_GENERATE_ASPNET_CERTIFICATE='false')
+    worker_dir=work/'speech-worker-windows.noindex'
+    if platform.system()=='Windows':run([sys.executable,'scripts/build-speech.py','--cpu','--destination',str(worker_dir)],env)
+    worker=worker_dir/'VelinSpeech.exe'
+    if not worker.exists():raise SystemExit('Build the Windows local speech worker first. See docs/LANGUAGES.md for native / Zig cross-build instructions.')
+    embedded=ROOT/'Windows/VELIN/obj/worker';embedded.mkdir(parents=True,exist_ok=True);shutil.copy2(worker,embedded/'VelinSpeech.exe')
     project='Windows/VELIN/VELIN.csproj'
     run([args.dotnet,'restore',project,'-r','win-x64','--locked-mode','--source','https://api.nuget.org/v3/index.json'],env)
     run([args.dotnet,'run','--project','Windows/VELIN.Core.Tests/VELIN.Core.Tests.csproj','-c','Release'],env)
@@ -31,9 +36,10 @@ def main():
             if path.is_file() and path.name.upper() in ('LICENSE','LICENSE.TXT','LICENSE.MD','THIRD-PARTY-NOTICES.TXT','THIRD-PARTY-NOTICES','THIRDPARTYNOTICES.TXT'):
                 notices.append(f'\n\n## {package} / {path.name}\n\n'+path.read_text(errors='replace'))
     (out/'THIRD-PARTY-NOTICES.txt').write_text('VELIN Windows dependencies and runtime notices\n'+''.join(notices))
+    shutil.copy2(worker,out/'VelinSpeech.exe');shutil.copy2(worker_dir/'WHISPER-LICENSE.txt',out/'WHISPER-LICENSE.txt');
     shutil.copy2(ROOT/'LICENSE',out/'LICENSE.txt');shutil.copy2(ROOT/'docs/WINDOWS.md',out/'WINDOWS.md')
     commit=subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT,text=True).strip()
-    manifest={'version':(ROOT/'VERSION').read_text().strip(),'build':(ROOT/'BUILD_NUMBER').read_text().strip(),'commit':commit,'sha256':hashlib.sha256(data).hexdigest(),'runtime':'win-x64','runtime_tested':False,'file_version':'.'.join(map(str,expected))}
+    manifest={'version':(ROOT/'VERSION').read_text().strip(),'build':(ROOT/'BUILD_NUMBER').read_text().strip(),'commit':commit,'sha256':hashlib.sha256(data).hexdigest(),'runtime':'win-x64','runtime_tested':False,'file_version':'.'.join(map(str,expected)),'speech_worker_sha256':hashlib.sha256(worker.read_bytes()).hexdigest()}
     (work/'windows-build.json').write_text(json.dumps(manifest,indent=2)+'\n')
     print(f'Windows x64 preview: {exe} ({len(data):,} bytes). Cross-compiled; Windows runtime testing is still required.')
 if __name__=='__main__':main()

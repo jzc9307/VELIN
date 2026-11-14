@@ -16,12 +16,18 @@ This initial Windows implementation was cross-compiled on macOS. Its shared requ
 
 1. Open **AI Connections**, choose a provider, enter an available model ID and API key, then **Save connection**. Keep up to five profiles; selecting a saved profile in the assistant changes the active provider. Keys stay in your Windows account’s Credential Manager, not settings JSON.
 2. Open **Audio & Permissions**. Choose microphone and/or computer audio, enter your installed recognition language (for example `en-US`), and save while Listen is stopped.
-3. Install the matching local Windows Speech recognizer through **Settings → Time & language → Speech** if needed. This preview uses classic installed Windows Speech engines, not cloud dictation. Windows language support differs from macOS. Missing engines fail with an explanation rather than silently uploading audio.
+3. For the native engine, install the matching local Windows Speech recognizer through **Settings → Time & language → Speech** if needed. This preview uses classic installed Windows Speech engines, not cloud dictation. Windows language support differs from macOS. Missing engines fail with an explanation rather than silently uploading audio.
 4. Open the floating assistant and start **Listen**. Computer audio captures the PC’s default output, including a meeting running on that device. Microphone supplies your own side as context. A separate phone call is not captured digitally.
 5. Correct the live computer-speech text if necessary, then press **Enter** in VELIN or **Ctrl+Alt+Enter** from another app. Speech alone does not start an AI request. **Resume live** restores recognition text after a correction.
 6. To ask about the screen, press the screenshot button, review the attachment, type a question and press Enter. Changing focus does not submit it.
 
 For Teams or another meeting app, route its output to the Windows default playback device before starting Listen. Restart Listen after changing devices. Multiple speakers/apps share the Computer label. Local speech quality and long-call reliability have not been benchmarked.
+
+## Multilingual listening and personalization
+
+Listen now defaults to computer audio, with a separate optional microphone button. About me and its local introduction wizard are shared across modes. Each mode keeps separate instructions, response language and text/Markdown/JSON files. Expanded interview/recruiting/lecture modes are included.
+
+For Malay/Mandarin/English and experimental Malaysian mixed speech, select Local multilingual and download Base or Small in Audio settings. The EXE embeds the same local speech worker; no audio is uploaded and no native Windows Speech language pack is needed for that engine. See [language setup and limits](LANGUAGES.md). The initial model download and chunk processing add delay; words can be wrong. Windows runtime remains untested.
 
 ## Shortcuts
 
@@ -40,7 +46,7 @@ Shortcuts can conflict with other software. Tray controls remain available. Clos
 
 Included: streaming chat; OpenAI Responses, Claude Messages, Gemini and compatible endpoints; five saved connections; Credential Manager keys; local sessions/search/Markdown export; notes; screenshot attachment; local microphone and default-output transcription; editable pending speech; locally cached reply chips; hover/press borders; tray recovery; animated downward expansion.
 
-The native Mac onboarding/tutorial, provider-logo presentation, document imports, Gemini model-catalog browser, transparent material, Mac hidden-mode behavior, speech engines and Command-arrow movement are not Windows features in this first preview. Windows answers currently display plain text/Markdown source. Test these differences before choosing the Windows preview for a call.
+The native Mac onboarding/tutorial, provider-logo presentation, PDF imports, Gemini model-catalog browser, transparent material, Mac hidden-mode behavior, speech engines and Command-arrow movement are not Windows features in this first preview. Windows answers currently display plain text/Markdown source. Test these differences before choosing the Windows preview for a call.
 
 Capture exclusion is an optional request to supported Windows capture APIs, **not universal invisibility**. The tray icon remains present for recovery. Provider model IDs are suggestions, and an account may lack access. Save/test or AI requests use your selected endpoint; HTTPS is required except loopback local servers. Redirects are blocked.
 

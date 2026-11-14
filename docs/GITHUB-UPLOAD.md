@@ -56,4 +56,6 @@ python3 -c 'import runpy; release = runpy.run_path("scripts/release.py"); releas
 
 The release preparation step updates VERSION, BUILD_NUMBER, the app plist and the tables together. Ordinary VS Code Push never does this automatically. Always build/package the version you intend to upload, and keep the DMG filename, app version and Git tag consistent.
 
+The local multilingual model weights are never uploaded with source or release assets. The EXE embeds the worker; the Windows ZIP includes its executable and license as well.
+
 The Windows build remains labeled **preview** until its audio/UI behavior is actually tested on Windows. Do not change this label merely because the release is published. The same VERSION / BUILD_NUMBER drives the Mac plist and Windows file metadata. Run `python scripts/build-windows.py` **after committing** the release source and before `package`, so its recorded commit matches the source archive.

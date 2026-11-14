@@ -4,6 +4,16 @@
 
 No pending changes.
 
+## [0.2.0]
+
+- Make Listen computer-audio-first, with a separate optional microphone toggle that can change without restarting the meeting stream; migrate the original two-input default once and preserve later explicit choices.
+- Reduce the gap between assistant controls and live speech, retaining the fixed top edge and downward animation.
+- Add an optional, entirely local multilingual Whisper engine for Malay, Mandarin, English and experimental Malaysian code-switching, with bounded audio buffering, a bundled warm worker, integrity-checked Base/Small model downloads and editable output. No cloud audio upload; mixed-language accuracy remains limited and Windows runtime needs verification.
+- Add a separate About me section and a local guided introduction builder using only supplied facts, with optional age.
+- Add interview, behavioral/coding interview, system design, case interview, recruiter screen, recruiting, team meeting and lecture modes. Give each mode its own instructions, response language and context files; preserve previous settings/files with their selected mode.
+- Preserve new Chinese continuation text after answering a live partial question.
+- Restore the README app logo and illustrated banner, and record the verified published v0.1.2 Mac and Windows downloads.
+
 ## [0.1.2]
 
 - Introduce a native Windows x64 preview with a self-contained portable EXE, five Credential Manager AI connections, streaming chat, screenshots, local history/notes/export, editable speech drafts, local microphone/default-output recognition, tray recovery and global shortcuts. Cross-compiled and shared-core tested; Windows runtime testing remains required.

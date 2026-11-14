@@ -8,6 +8,26 @@ import CoreGraphics
     }
     static func object(_ request: URLRequest) throws -> [String: Any] { try JSONSerialization.jsonObject(with: request.httpBody!) as! [String: Any] }
     @MainActor static func main() async throws {
+        let oldSettings = Data("{\"mode\":\"Meeting\",\"customInstruction\":\"Legacy instructions\",\"contextFiles\":[{\"id\":\"12345678-1234-1234-1234-123456789ABC\",\"name\":\"meeting.txt\",\"text\":\"Meeting context\"}],\"microphone\":true}".utf8)
+        var migrated = try JSONDecoder().decode(Configuration.self, from: oldSettings)
+        try expect(migrated.selectedInstruction == "Legacy instructions" && migrated.selectedFiles.first?.name == "meeting.txt", "Legacy instructions and files stay with the previously selected mode")
+        migrated.mode = .codingInterview
+        try expect(migrated.selectedInstruction.isEmpty && migrated.selectedFiles.isEmpty, "Another mode cannot inherit the previous mode's private instructions or files")
+        migrated.activeModePreferences = ModePreferences(instruction: "Coding-only fixture", outputLanguage: "English", files: [])
+        migrated.mode = .meeting
+        try expect(migrated.selectedInstruction == "Legacy instructions", "Switching modes preserves independent saved preferences")
+        migrated.aboutMe = "Shared biography fixture"
+        let restoredModes = try JSONDecoder().decode(Configuration.self, from: JSONEncoder().encode(migrated))
+        try expect(restoredModes.aboutMe == "Shared biography fixture" && restoredModes.modePreferences[AssistantMode.codingInterview.rawValue]?.instruction == "Coding-only fixture", "About me and mode preferences survive a settings round trip")
+        migrated.migrateComputerFirst()
+        try expect(!migrated.microphone && migrated.systemAudio, "The one-time computer-first migration turns the microphone off")
+        migrated.microphone = true; migrated.migrateComputerFirst()
+        try expect(migrated.microphone, "An explicit later microphone choice survives subsequent launches")
+        var biography = AboutMeDraft(); biography.name = "Fixture user"; biography.skills = "Swift, Python"; biography.experience = "A supplied project"
+        try expect(biography.biography.contains("Swift, Python") && !biography.biography.contains("Age") && !biography.biography.contains("qualification"), "The local biography builder uses only supplied facts and keeps age optional")
+        try expect(Set(AssistantMode.allCases.map(\.rawValue)).count == AssistantMode.allCases.count && AssistantMode.allCases.contains(.systemDesign), "New interview, recruiting and lecture modes retain unique saved identities")
+        var chineseDraft = HeardQuestionDraft(); chineseDraft.update("你好我是Jason"); chineseDraft.consume(); chineseDraft.update("你好我是Jason我想问一个问题")
+        try expect(chineseDraft.text == "我想问一个问题", "Chinese continuation after Enter is not lost to whitespace word counting")
         var visibility = AssistantVisibilityState()
         let firstShow = visibility.request(visible: true)!
         try expect(visibility.request(visible: true) == nil, "Repeated show does not restart its transition")

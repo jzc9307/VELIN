@@ -97,7 +97,7 @@ struct OverviewView: View {
                 }.overlay(RoundedRectangle(cornerRadius: 22).strokeBorder(.white.opacity(0.08)))
                 HStack { Text("Make room for the moment").font(.system(size: 17, weight: .medium)); Spacer(); Text("THREE WAYS TO BEGIN").font(.system(size: 9, weight: .medium)).tracking(1.5).foregroundStyle(Ink.muted) }
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 210), spacing: 14)], spacing: 14) {
-                    action("Listen & stay present", "Live transcript from your mic and computer audio.", "waveform", "Start listening", Ink.mint) { model.page = "Session"; model.startListening() }
+                    action("Listen & stay present", "Live transcript from your computer audio. Your mic is optional.", "waveform", "Start listening", Ink.mint) { model.page = "Session"; model.startListening() }
                     action("See the bigger picture", "Attach a screenshot and ask about what's on screen.", "viewfinder", "Capture screen", Ink.lilac) { model.capture() }
                     action("Bring your own AI", "Your providers. Your keys. Up to five connections.", "circle.hexagongrid", "AI connections", Color(hex: 0xE6C7A1)) { model.page = "AI Connections" }
                 }

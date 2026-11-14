@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace Velin.Core;
 public sealed class Profile {
@@ -26,9 +27,39 @@ public sealed class Settings {
     public string Mode { get; set; } = "Meeting";
     public string Instructions { get; set; } = "";
     public string Language { get; set; } = "en-US";
-    public bool Microphone { get; set; } = true;
+    public bool Microphone { get; set; } = false;
     public bool ComputerAudio { get; set; } = true;
     public bool CaptureProtection { get; set; }
+    public string AboutMe { get; set; } = "";
+    public Dictionary<string,ModeContext> ModeContexts { get; set; } = [];
+    public bool PersonalizationMigrated { get; set; }
+    public bool ComputerFirstMigrated { get; set; }
+    public string SpeechBackend { get; set; } = "windows";
+    public string LocalModelPath { get; set; } = "";
+    public string SpeechWorkerPath { get; set; } = "";
+    public string MixedLanguageHint { get; set; } = "English, Bahasa Melayu, Mandarin Chinese. Preserve the spoken language, do not translate.";
+    [JsonIgnore] public ModeContext ActiveMode { get { if(!ModeContexts.TryGetValue(Mode,out var value))ModeContexts[Mode]=value=new();return value; } }
+    public void Migrate(){if(!PersonalizationMigrated){ModeContexts.TryAdd(Mode,new(){Instructions=Instructions});PersonalizationMigrated=true;}if(!ComputerFirstMigrated){Microphone=false;ComputerAudio=true;ComputerFirstMigrated=true;}}
+}
+public sealed class ContextFile { public Guid Id {get;set;}=Guid.NewGuid();public string Name {get;set;}="";public string Text {get;set;}=""; }
+public sealed class ModeContext { public string Instructions {get;set;}="";public string OutputLanguage {get;set;}="Match the conversation";public List<ContextFile> Files {get;set;}=[]; }
+public static class Modes {
+    public static readonly string[] Names=["General","Meeting","Interview","Behavioral Interview","Coding Interview","System Design","Case Interview","Recruiter Screen","Recruiting","Team Meet","Lecture","Coding","Study","Sales","Custom"];
+    public static string Instruction(string mode)=>mode switch {
+        "Interview" or "Recruiter Screen"=>"Answer naturally using only the user's supplied real background; never invent credentials, experience or commitments.",
+        "Behavioral Interview"=>"Use the user's real situation, actions and results in a concise answer. Ask for missing facts instead of inventing them.",
+        "System Design"=>"Clarify requirements, propose an architecture and explain the main tradeoff. Label assumptions.",
+        "Case Interview"=>"Structure the case, separate facts and estimates, then make a concise recommendation.",
+        "Coding" or "Coding Interview"=>"Explain the approach and tradeoff. Give code and complexity when requested, without claiming unperformed tests.",
+        "Study" or "Lecture"=>"Explain the concept clearly, preserving terminology. Give a direct answer before expanding.",
+        _=>"Answer the actual question concisely. Do not invent personal facts, product claims or commitments."
+    };
+}
+public static class Biography {
+    public static string Compose(string name,string skills,string qualification,string experience,string goals,string age=""){
+        List<string> parts=[];if(!string.IsNullOrWhiteSpace(name))parts.Add("My name is "+name.Trim()+".");
+        foreach(var (label,value) in new[]{("Skills",skills),("Education / highest qualification",qualification),("Experience and projects",experience),("Goals",goals),("Age (optional)",age)})if(!string.IsNullOrWhiteSpace(value))parts.Add(label+": "+value.Trim());return string.Join("\n\n",parts);
+    }
 }
 public sealed class Message {
     public Guid Id { get; set; } = Guid.NewGuid();
@@ -53,19 +84,19 @@ public sealed class Session {
     public string Markdown() => "# " + Title + "\n\n" + string.Join("\n\n", Messages.Select(m => "## " + (m.InputSource == "Computer" ? "Other side" : m.Role) + "\n\n" + m.Text + (m.Extras?.Markdown() ?? ""))) + "\n\n## Transcript\n\n" + string.Join("\n", Transcript.Select(t => $"{t.Source}: {t.Text}")) + "\n\n## Notes\n\n" + Notes;
 }
 public sealed class HeardDraft {
-    string completed = "", partial = ""; int consumedWords; string? edited;
+    string completed = "", partial = "", consumedPrefix=""; int consumedWords; string? edited;
     public bool IsEdited => edited != null;
     public string Text => edited ?? LiveText;
     public string LiveText => Tail(string.Join(" ", new[] { completed, Remaining(partial) }.Where(x => x.Length > 0)), 6000);
     static string Clean(string s) => s.Any(char.IsLetterOrDigit) ? s.Trim() : "";
     static string Tail(string s, int count) => s.Length > count ? s[^count..] : s;
-    string Remaining(string text) => Clean(string.Join(" ", text.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries).Skip(consumedWords)));
+    string Remaining(string text) => consumedPrefix.Any(c=>c>=0x3400&&c<=0x9fff)&&text.StartsWith(consumedPrefix,StringComparison.Ordinal)?Clean(text[consumedPrefix.Length..]):Clean(string.Join(" ", text.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries).Skip(consumedWords)));
     public void Update(string words) => partial = Clean(words);
-    public void Finish(string words) { completed = Tail((completed + " " + Remaining(words)).Trim(), 6000); partial = ""; consumedWords = 0; }
+    public void Finish(string words) { completed = Tail((completed + " " + Remaining(words)).Trim(), 6000); partial = ""; consumedWords = 0; consumedPrefix=""; }
     public void Edit(string text) => edited = text.Length > 6000 ? text[..6000] : text;
     public void Resume() => edited = null;
-    public void Consume() { completed = ""; edited = null; consumedWords = partial.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries).Length; }
-    public void Reset() { completed = partial = ""; consumedWords = 0; edited = null; }
+    public void Consume() { consumedPrefix=partial;completed = ""; edited = null; consumedWords = partial.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries).Length; }
+    public void Reset() { completed = partial = consumedPrefix = ""; consumedWords = 0; consumedPrefix=""; edited = null; }
 }
 public sealed class LocalStore(string root) {
     public string Root { get; } = root;

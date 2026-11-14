@@ -1,3 +1,21 @@
+# v0.2.0 integration verification · 14 November 2026
+
+Current standard suite: **115 Mac checks** (78 core/transport/geometry, 5 release, 32 profile/audio/workflow), plus the separate 3 signed credential IPC checks. Windows shared-core suite: **66 checks**.
+
+New checks cover backward-compatible configuration migration, separate mode files/instructions, biography generation without invented facts, one-time microphone defaults, preserved later mic choices, and Chinese continuation after an answered partial. The Mac worker was tested with a public upstream English fixture, synthetic Malay and Mandarin audio, and a combined Malay/Mandarin clip. Both languages appeared in mixed output; spelling/romanization errors were observed. Base and Small were spot-checked. These are not real-call accuracy or Malaysian-dialect acceptance tests, and the local path is explicitly experimental.
+
+An additional native Swift fixture probe passed: PCM conversion, warm worker pipe framing, background chunk queue and final-text callback produced the public English fixture without device capture or API access.
+
+The worker has a pinned/hashed MIT source release, no sockets/cloud requests/keys, bounded PCM/text framing, warm model reuse and cancellation. Models are downloaded separately and checked against upstream hashes; no model weights or user data enter source or packages. Windows x64 worker and app are cross-compiled; Windows runtime/audio/UI remains untested. The previously approved Keychain broker's source, scope and signed reuse policy remain unchanged.
+
+Published v0.1.2 was verified through GitHub: both asset hashes match the local package. Its tag targets a merge with an identical source tree to packaged d202868; the release catalog now preserves the actual DMG and EXE links. v0.2.0 is a new local preparation, not a replacement upload or publication.
+
+Native Mac UI confirmed the new About me section, all guided introduction fields including optional age, separate Meeting instructions/files, and the floating mic-off control. The existing local biography was moved from Meeting instructions into About me without a provider request; credentials and history were retained.
+
+The sections below are historical verification records and retain the versions/test counts that were true at those stages.
+
+---
+
 # Current release verification · 14 November 2026
 
 Target: **VELIN 0.1.2 (build 3)**. macOS Apple Silicon plus a new Windows x64 preview. The records below this section are historical and describe the exact state at their dates; earlier ad-hoc signing references do not describe the current Mac build.

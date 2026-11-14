@@ -27,8 +27,8 @@ struct AssistantVisibilityState {
 enum AssistantPanelGeometry {
     static func frame(current: CGRect, screen: CGRect, listening: Bool, expanded: Bool, image: Bool, error: Bool, warning: Bool) -> CGRect {
         let width = min(660, screen.width - 32)
-        var contentHeight: CGFloat = 120
-        if listening { contentHeight += warning ? 206 : 178 }
+        var contentHeight: CGFloat = 110
+        if listening { contentHeight += warning ? 176 : 148 }
         if expanded { contentHeight += 300 }
         if image { contentHeight += 84 }
         if error { contentHeight += 56 }

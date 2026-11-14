@@ -146,24 +146,58 @@ struct ConnectionEditor: View {
 
 struct PreferencesView: View {
     @ObservedObject var model: AppModel
+    @ViewState private var showBiographyBuilder = false
+    private var preferences: Binding<ModePreferences> { let key = model.config.mode.rawValue; return Binding(get: { model.config.modePreferences[key] ?? ModePreferences() }, set: { model.config.modePreferences[key] = $0 }) }
     var body: some View {
-        ScrollView { VStack(alignment: .leading, spacing: 24) {
-            SectionHeading(title: "Make room for your way of thinking.", subtitle: "Set the tone, bring context, and choose how VELIN helps.")
-            Card { VStack(alignment: .leading, spacing: 17) {
+        ScrollView { VStack(alignment: .leading, spacing: 20) {
+            SectionHeading(title: "Make room for your way of thinking.", subtitle: "Your background stays with you. Each mode keeps its own instructions and files.")
+            Card { VStack(alignment: .leading, spacing: 12) {
+                HStack { Label("About me", systemImage: "person.crop.circle").font(.system(size: 16, weight: .medium)); Spacer(); Button("Help me write it") { showBiographyBuilder = true }.buttonStyle(Press()) }
+                Text("Introduce yourself, your skills, education, real experience and goals. Shared across modes when you ask AI. Age is optional.").font(.system(size: 11)).foregroundStyle(Ink.muted)
+                TextEditor(text: $model.config.aboutMe).font(.system(size: 13)).scrollContentBackground(.hidden).frame(height: 130).padding(10).background(Ink.background, in: RoundedRectangle(cornerRadius: 10))
+                HStack { Button("Save About me") { model.saveConfig(); model.notice = "About me saved on this Mac." }.buttonStyle(Press(primary: true))
+                    if !model.config.selectedInstruction.isEmpty && model.config.aboutMe.isEmpty { Button("Move current instructions here") { model.config.aboutMe = model.config.selectedInstruction; model.config.activeModePreferences.instruction = ""; model.saveConfig() }.buttonStyle(Press()) }
+                }
+            } }
+            Card { VStack(alignment: .leading, spacing: 14) {
                 Text("Assistant mode").font(.system(size: 16, weight: .medium))
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 125))], spacing: 10) { ForEach(AssistantMode.allCases) { mode in Button { model.config.mode = mode; model.session.mode = mode; model.saveConfig() } label: { Label(mode.rawValue, systemImage: mode.icon).frame(maxWidth: .infinity, minHeight: 40).foregroundStyle(model.config.mode == mode ? Ink.mint : Ink.muted).background(model.config.mode == mode ? Ink.mint.opacity(0.08) : .white.opacity(0.025), in: RoundedRectangle(cornerRadius: 9)) }.buttonStyle(.plain) } }
-                Text("Custom instructions").font(.system(size: 12, weight: .medium))
-                TextEditor(text: $model.config.customInstruction).font(.system(size: 13)).scrollContentBackground(.hidden).frame(height: 100).padding(10).background(Ink.background, in: RoundedRectangle(cornerRadius: 10))
-                TextField("Output language", text: $model.config.outputLanguage).velinField()
-                Button("Save preferences") { model.saveConfig(); model.notice = "Preferences saved." }.buttonStyle(Press(primary: true))
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 145))], spacing: 8) { ForEach(AssistantMode.allCases) { mode in Button { model.config.mode = mode; model.session.mode = mode; model.saveConfig() } label: { Label(mode.rawValue, systemImage: mode.icon).font(.system(size: 12)).frame(maxWidth: .infinity, minHeight: 38).foregroundStyle(model.config.mode == mode ? Ink.mint : Ink.muted) }.buttonStyle(Press(primary: false)) } }
+                Text(model.config.mode.rawValue + " instructions").font(.system(size: 13, weight: .semibold)).foregroundStyle(Ink.mint)
+                Text("Only this mode uses the instructions, response language and files below. Switching modes saves the current edit.").font(.system(size: 11)).foregroundStyle(Ink.muted)
+                TextEditor(text: preferences.instruction).id(model.config.mode).font(.system(size: 13)).scrollContentBackground(.hidden).frame(height: 110).padding(10).background(Ink.background, in: RoundedRectangle(cornerRadius: 10))
+                TextField("Response language", text: preferences.outputLanguage).velinField()
+                Button("Save " + model.config.mode.rawValue + " preferences") { model.saveConfig(); model.notice = "Preferences saved for " + model.config.mode.rawValue + "." }.buttonStyle(Press(primary: true))
             } }
-            Card { VStack(alignment: .leading, spacing: 16) {
-                HStack { Text("Bring your context").font(.system(size: 16, weight: .medium)); Spacer(); Button { model.importContext() } label: { Label("Add files", systemImage: "plus") }.buttonStyle(Press()) }
-                Text("Text, Markdown, JSON, and text-based PDFs. Up to 20 files, 12,000 characters each. Included in questions sent to your selected provider.").font(.system(size: 12)).foregroundStyle(Ink.muted)
-                ForEach(model.config.contextFiles) { file in HStack { Image(systemName: "doc.text").foregroundStyle(Ink.lilac); Text(file.name).font(.system(size: 12)); Spacer(); Text("\(file.text.count) chars").font(.system(size: 10)).foregroundStyle(Ink.muted); Button { model.config.contextFiles.removeAll { $0.id == file.id }; model.saveConfig() } label: { Image(systemName: "xmark") }.buttonStyle(.plain).help("Remove context file") } }
+            Card { VStack(alignment: .leading, spacing: 13) {
+                HStack { Text("Files for " + model.config.mode.rawValue).font(.system(size: 16, weight: .medium)); Spacer(); Button { model.importContext() } label: { Label("Add files", systemImage: "plus") }.buttonStyle(Press()) }
+                Text("Text, Markdown, JSON or text-based PDFs. Up to 20 files per mode, 12,000 characters each. Only this mode’s files are included when you ask.").font(.system(size: 11)).foregroundStyle(Ink.muted)
+                if model.config.selectedFiles.isEmpty { Text("No files in this mode yet.").font(.system(size: 12)).foregroundStyle(Ink.muted) }
+                ForEach(model.config.selectedFiles) { file in HStack { Image(systemName: "doc.text").foregroundStyle(Ink.lilac); Text(file.name).font(.system(size: 12)); Spacer(); Text("\(file.text.count) chars").font(.system(size: 10)).foregroundStyle(Ink.muted); Button { model.config.activeModePreferences.files.removeAll { $0.id == file.id }; model.saveConfig() } label: { Image(systemName: "xmark") }.buttonStyle(IconPress()).help("Remove from this mode") } }
             } }
-        }.padding(32) }
+        }.padding(28) }.sheet(isPresented: $showBiographyBuilder) { BiographyBuilder(model: model) }
     }
+}
+struct BiographyBuilder: View {
+    @ObservedObject var model: AppModel
+    @Environment(\.dismiss) private var dismiss
+    @ViewState private var draft = AboutMeDraft()
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack { Text("A little about you.").font(.system(size: 25, weight: .semibold)); Spacer(); Button("Cancel") { dismiss() }.buttonStyle(IconPress()) }
+            Text("Fill in what you want to share. We’ll turn only these facts into an editable introduction locally—no AI request or invented achievements.").font(.system(size: 12)).foregroundStyle(Ink.muted)
+            ScrollView { VStack(spacing: 12) {
+                input("Name / preferred name", $draft.name)
+                input("Skills", $draft.skills)
+                input("Education / highest qualification", $draft.qualification)
+                input("Experience, projects and achievements", $draft.experience)
+                input("What you’re looking for / goals", $draft.goals)
+                input("Age · optional", $draft.age)
+                Text(draft.biography.isEmpty ? "Your introduction appears here as you fill this in." : draft.biography).font(.system(size: 12)).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading).padding(14).background(Ink.background, in: RoundedRectangle(cornerRadius: 10))
+            } }
+            HStack { Text("Review before saving. About me is shared with your selected AI when you ask.").font(.system(size: 10)).foregroundStyle(Ink.muted); Spacer(); Button(model.config.aboutMe.isEmpty ? "Use introduction" : "Replace About me") { model.config.aboutMe = draft.biography; model.saveConfig(); dismiss() }.buttonStyle(Press(primary: true)).disabled(draft.biography.isEmpty) }
+        }.padding(24).frame(width: 560, height: 600).background(Ink.surface).background(HideNativeScrollbars()).foregroundStyle(.white)
+    }
+    func input(_ title: String, _ text: Binding<String>) -> some View { VStack(alignment: .leading, spacing: 5) { Text(title).font(.system(size: 11)).foregroundStyle(Ink.muted).frame(maxWidth: .infinity, alignment: .leading); TextField(title, text: text).velinField() } }
 }
 struct PermissionRow: View {
     let icon: String
@@ -175,6 +209,7 @@ struct PermissionRow: View {
 }
 struct AudioSettingsView: View {
     @ObservedObject var model: AppModel
+    @ObservedObject private var speechModels = SpeechModels.shared
     var body: some View {
         ScrollView { VStack(alignment: .leading, spacing: 22) {
             SectionHeading(title: "Only when you press Listen.", subtitle: "Control the sources and permissions VELIN uses. No audio recording files are retained.")
@@ -182,12 +217,27 @@ struct AudioSettingsView: View {
             ListeningStatusView(model: model)
             Card { VStack(alignment: .leading, spacing: 20) {
                 Text("Audio sources").font(.system(size: 16, weight: .medium))
-                Toggle("Microphone · labeled You", isOn: $model.config.microphone)
+                Toggle("Optional microphone · your voice (off by default)", isOn: $model.config.microphone)
                 Toggle("Computer audio · labeled Computer", isOn: $model.config.systemAudio)
                 Text("Computer audio may include several people. VELIN separates input sources, not individual speakers. Headphones help avoid the same voice reaching both inputs.").font(.system(size: 11)).foregroundStyle(Ink.muted)
-                Picker("Transcription language", selection: $model.config.language) { Text("English (US)").tag("en-US"); Text("English (UK)").tag("en-GB"); Text("中文（普通话）").tag("zh-CN"); Text("中文（繁體）").tag("zh-TW"); Text("Bahasa Melayu").tag("ms-MY"); Text("日本語").tag("ja-JP"); Text("Español").tag("es-ES"); Text("Français").tag("fr-FR"); Text("Deutsch").tag("de-DE") }.pickerStyle(.menu)
+                Picker("Speech engine", selection: $model.config.speechBackend) { Text("Apple · fast, one selected language").tag("apple"); Text("Local multilingual · mixed languages (experimental)").tag("whisper") }.pickerStyle(.menu)
+                if model.config.speechBackend == "whisper" {
+                    Text("Malay + Mandarin + English, including Malaysian code-switching. Works locally with Whisper; short chunks are decoded after a pause or about six seconds. Accuracy, accents and mixed sentences need real testing. No automatic translation or audio upload.").font(.system(size: 11)).foregroundStyle(Ink.muted).lineSpacing(3)
+                    TextField("Optional spelling / language hints", text: $model.config.mixedLanguageHint).velinField()
+                    Text(model.config.localModelPath.isEmpty ? "No multilingual model selected." : URL(fileURLWithPath: model.config.localModelPath).lastPathComponent).font(.system(size: 11)).foregroundStyle(Ink.mint)
+                    HStack {
+                        Button("Download Base · 142 MB") { speechModels.fetch(small: false) { url in model.config.localModelPath = url.path; model.saveConfig() } }.buttonStyle(Press()).disabled(speechModels.downloading)
+                        Button("Small · 466 MB") { speechModels.fetch(small: true) { url in model.config.localModelPath = url.path; model.saveConfig() } }.buttonStyle(Press()).disabled(speechModels.downloading)
+                        Button("Choose .bin") { let panel = NSOpenPanel(); panel.allowedContentTypes = [.data]; if panel.runModal() == .OK, let url = panel.url { model.config.localModelPath = url.path; model.saveConfig() } }.buttonStyle(Press())
+                    }
+                    if speechModels.downloading { HStack { ProgressView(value: speechModels.progress); Button("Cancel download") { speechModels.cancel() }.buttonStyle(IconPress()) } }
+                    if !speechModels.result.isEmpty { Text(speechModels.result).font(.system(size: 11)).foregroundStyle(Ink.muted) }
+                    Text("Base is lighter; Small may improve recognition at higher memory and processing cost. Model weights are an optional free download from Hugging Face, kept on this Mac and excluded from Git/installers.").font(.system(size: 10)).foregroundStyle(Ink.muted)
+                } else {
+                Picker("Transcription language", selection: $model.config.language) { Text("English (US)").tag("en-US"); Text("English (UK)").tag("en-GB"); Text("English (Malaysia)").tag("en-MY"); Text("中文（普通话）").tag("zh-CN"); Text("中文（繁體）").tag("zh-TW"); Text("Bahasa Melayu (Malaysia)").tag("ms-MY"); Text("粵語（香港）").tag("zh-HK"); Text("Bahasa Indonesia").tag("id-ID"); Text("தமிழ் · Tamil").tag("ta-IN"); Text("日本語").tag("ja-JP"); Text("Español").tag("es-ES"); Text("Français").tag("fr-FR"); Text("Deutsch").tag("de-DE") }.pickerStyle(.menu)
                 Toggle("Require on-device speech recognition", isOn: $model.config.localSpeechOnly)
                 Text("When enabled, unsupported on-device languages produce a clear error. Turning this off permits Apple's speech service to process audio according to your system settings. Your selected AI provider receives text only when you ask a question or generate notes.").font(.system(size: 11)).foregroundStyle(Ink.muted).lineSpacing(4)
+                }
                 Button("Save audio settings") { model.saveConfig(); model.notice = "Audio settings saved. Changes apply the next time you press Listen." }.buttonStyle(Press(primary: true))
             }.toggleStyle(.switch) }.disabled(model.recording || model.startingAudio)
             if model.recording { Text("Stop listening before changing audio sources.").font(.system(size: 12)).foregroundStyle(Ink.mint) }

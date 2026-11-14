@@ -12,7 +12,7 @@ internal sealed class OverlayForm : Form
     readonly FlowLayoutPanel stack = new() { Dock = DockStyle.Top, FlowDirection = FlowDirection.TopDown, WrapContents = false, AutoSize = true, Padding = new Padding(12), BackColor = Theme.Background };
     readonly Panel audioPanel = new() { Height = 128 }, imagePanel = new() { Height = 90 }, answerPanel = new() { Height = 280 };
     readonly PictureBox preview = new() { Width = 116, Height = 74, SizeMode = PictureBoxSizeMode.Zoom, Dock = DockStyle.Left };
-    readonly ClickButton listen, mode, provider, expand, send;
+    readonly ClickButton listen, mode, provider, expand, send, microphone;
     readonly NotifyIcon tray;
     readonly FlowLayoutPanel chips = Theme.Row();
     readonly System.Windows.Forms.Timer animation = new() { Interval = 15 };
@@ -27,10 +27,11 @@ internal sealed class OverlayForm : Form
         send = new ClickButton("↵", () => Run(() => state.Ask()), true) { Dock = DockStyle.Right, Width = 48, Height = 38 }; inputRow.Controls.Add(prompt); inputRow.Controls.Add(send); stack.Controls.Add(inputRow);
         var toolbar = Theme.Row(); toolbar.WrapContents = false; toolbar.AutoSize = false; toolbar.Height = 48;
         var logo = new ClickButton("V", () => state.Main?.OpenPage("Overview")) { Width = 34 }; logo.MouseDown += (_, e) => { if (e.Button == MouseButtons.Left && e.Clicks == 2) Native.Drag(this); }; toolbar.Controls.Add(logo);
-        toolbar.Controls.Add(new ClickButton("▣", () => Run(state.Capture)) { Width = 48, AccessibleName = "Attach screenshot" });
+        toolbar.Controls.Add(new ClickButton("▣", () => Run(state.Capture)) { Width = 36, AccessibleName = "Attach screenshot" });
         listen = new ClickButton("Listen", () => Run(state.ToggleListen)); toolbar.Controls.Add(listen);
+        microphone = new ClickButton("Mic", () => Run(state.ToggleMicrophone)) { Width = 40 }; toolbar.Controls.Add(microphone);
         mode = new ClickButton("Meeting ▾", ChooseMode); provider = new ClickButton("AI ▾", ChooseProvider); toolbar.Controls.Add(mode); toolbar.Controls.Add(provider);
-        toolbar.Controls.Add(new ClickButton("History", () => state.Main?.OpenPage("History")) { Width = 64 });
+        toolbar.Controls.Add(new ClickButton("History", () => state.Main?.OpenPage("History")) { Width = 58 });
         toolbar.Controls.Add(new ClickButton("⚙", () => state.Main?.OpenPage("AI Connections")));
         expand = new ClickButton("⌄", () => { expanded = !expanded; Render(); }); toolbar.Controls.Add(expand); toolbar.Controls.Add(new ClickButton("×", Hide)); stack.Controls.Add(toolbar);
         audioStatus.Dock = DockStyle.Top; audioStatus.AutoSize = false; audioStatus.Height = 26; audioPanel.Controls.Add(audioStatus);
@@ -54,7 +55,7 @@ internal sealed class OverlayForm : Form
     public void ExpandAnswer() { expanded = true; answerView = "Answer"; Render(); }
     async void Run(Func<Task> action) { try { await action(); } catch (Exception e) { state.SetError(e.Message); } }
     void Safe(Action action) { try { action(); } catch (Exception e) { state.SetError(e.Message); } }
-    void ChooseMode() { var menu = new ContextMenuStrip(); foreach (var item in new[] { "General", "Meeting", "Coding", "Study", "Sales", "Custom" }) { var value = item; menu.Items.Add(value, null, (_, _) => Safe(() => { state.Config.Mode = value; state.SaveConfig(); })); } menu.Show(mode, new Point(0, mode.Height)); }
+    void ChooseMode() { var menu = new ContextMenuStrip(); foreach (var item in Modes.Names) { var value = item; menu.Items.Add(value, null, (_, _) => Safe(() => { state.Config.Mode = value; state.SaveConfig(); })); } menu.Show(mode, new Point(0, mode.Height)); }
     void ChooseProvider() { var menu = new ContextMenuStrip(); foreach (var item in state.Config.Profiles) { var value = item; menu.Items.Add(item.Name + " · " + item.Provider, null, (_, _) => Safe(() => { state.Config.ActiveProfileId = value.Id; state.SaveConfig(); })); } menu.Items.Add("Manage connections…", null, (_, _) => state.Main?.OpenPage("AI Connections")); menu.Show(provider, new Point(0, provider.Height)); }
     void ResizeBelow(int height) { if (height == targetHeight && (animating || Height == height)) return; fromHeight = Height; targetHeight = height; animationStart = DateTime.UtcNow; if (!Visible || !SystemInformation.IsMenuAnimationEnabled) { animation.Stop(); animating = false; Height = height; } else { animating = true; animation.Start(); } }
     void Render()
@@ -65,8 +66,8 @@ internal sealed class OverlayForm : Form
             var showAudio = state.Listening || state.AudioBusy; audioPanel.Visible = showAudio;
             if ((!heard.Focused || !state.Heard.IsEdited) && heard.Text != state.Heard.Text) { heard.Text = state.Heard.Text; heard.SelectionStart = heard.TextLength; heard.ScrollToCaret(); }
             audioStatus.Text = (state.Heard.IsEdited ? "Your correction · " : "") + state.Status + $"    You {state.MicLevel:P0}  ·  Computer {state.ComputerLevel:P0}";
-            listen.Text = state.AudioBusy ? "Starting…" : state.Listening ? "Stop" : "Listen"; listen.Width = 86; listen.Enabled = !state.AudioBusy; listen.Primary = state.Listening;
-            mode.Text = state.Config.Mode + " ▾"; mode.Width = 108; provider.Text = (state.Active?.Provider ?? "AI") + " ▾"; provider.Width = 108; send.Enabled = !state.Generating; expand.Text = expanded ? "⌃" : "⌄";
+            listen.Text = state.AudioBusy ? "Starting…" : state.Listening ? "Stop" : "Listen"; listen.Width = 76; listen.Enabled = !state.AudioBusy; listen.Primary = state.Listening;
+            mode.Text = state.Config.Mode + " ▾"; mode.Width = 100; microphone.Primary = state.Config.Microphone; microphone.Enabled = !state.AudioBusy; provider.Text = (state.Active?.Provider ?? "AI") + " ▾"; provider.Width = 90; send.Enabled = !state.Generating; expand.Text = expanded ? "⌃" : "⌄";
             imagePanel.Visible = state.Image != null; if (!ReferenceEquals(shownImage, state.Image)) { shownImage = state.Image; var old = preview.Image; preview.Image = null; old?.Dispose(); if (shownImage != null) { using var stream = new MemoryStream(shownImage); using var bitmap = Image.FromStream(stream); preview.Image = new Bitmap(bitmap); } }
             answerPanel.Visible = expanded && state.Session.Messages.Any(m => m.Role == "assistant"); RenderAnswer();
             error.Text = state.Error; error.Visible = state.Error.Length > 0;

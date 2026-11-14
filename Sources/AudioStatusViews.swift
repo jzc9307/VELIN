@@ -4,7 +4,7 @@ struct ListeningStatusView: View {
     @ObservedObject var model: AppModel
     var compact = false
     var body: some View {
-        VStack(alignment: .leading, spacing: 9) {
+        VStack(alignment: .leading, spacing: compact ? 5 : 9) {
             HStack {
                 Label(model.startingAudio ? "Connecting audio…" : model.recording ? "Listening · " + model.config.language : "Audio is stopped", systemImage: "waveform").font(.system(size: 10, weight: .semibold)).foregroundStyle(Ink.mint)
                 Spacer()
@@ -12,12 +12,12 @@ struct ListeningStatusView: View {
                     Button(model.generating ? "Answering…" : "Answer ↵") { model.ask() }.buttonStyle(Press(primary: true)).font(.system(size: 10, weight: .semibold)).disabled(model.generating).keyboardShortcut(.return, modifiers: [])
                 }
                 if compact { Button("Transcript ↗") { model.sessionTab = "Transcript"; model.page = "Session"; model.openMain() }.font(.system(size: 10)).buttonStyle(IconPress()) }
-            }.frame(height: compact ? 36 : nil)
+            }.frame(height: compact ? 26 : nil)
             HStack(spacing: 16) {
-                meter("You", "mic", model.level)
+                if model.config.microphone { meter("You", "mic", model.level) }
                 meter("Computer", "speaker.wave.2", model.computerLevel)
             }
-            if !compact { Text("Microphone input: " + model.microphoneInputName + ". Teams may use a different input.").font(.system(size: 10)).foregroundStyle(Ink.muted) }
+            if !compact && model.config.microphone { Text("Microphone input: " + model.microphoneInputName + ". Teams may use a different input.").font(.system(size: 10)).foregroundStyle(Ink.muted) }
             if !model.audioWarning.isEmpty { Text(model.audioWarning).font(.system(size: 10)).foregroundStyle(Ink.lilac).lineLimit(compact ? 2 : 6) }
             if !model.pendingHeardQuestion.isEmpty || model.heardQuestion.isEdited {
                 HStack(spacing: 7) {
@@ -31,7 +31,7 @@ struct ListeningStatusView: View {
                 Text(model.recording && model.elapsed >= 8 ? "Waiting for speech… Check the audio meters and language." : "Live words appear here. Click them to edit before answering.")
                     .font(.system(size: compact ? 11 : 13)).foregroundStyle(Ink.muted).lineLimit(2).frame(maxWidth: .infinity, alignment: .leading)
             }
-        }.padding(compact ? 13 : 18).background(Ink.background.opacity(model.config.overlayOpacity))
+        }.padding(compact ? 8 : 18).background(Ink.background.opacity(model.config.overlayOpacity))
     }
     func meter(_ source: String, _ icon: String, _ value: Double) -> some View {
         VStack(alignment: .leading, spacing: 4) {

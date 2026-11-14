@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="Resources/icon.png" alt="VELIN app logo" width="100" />
+
 # VELIN
 
 ---
@@ -17,6 +19,8 @@ Live questions, concise answers, and your choice of AI — in one compact worksp
 AI provider API usage is billed separately. macOS early release · Windows x64 preview.
 
 </div>
+
+<p align="center"><img src="docs/assets/readme-banner.svg" alt="VELIN — Your AI. Your freedom. Free and open source." width="1200" /></p>
 
 ---
 
@@ -55,22 +59,31 @@ Choose an actual published asset below, or upload the prepared local files throu
 <!-- VERSIONS:START -->
 | Version | Status | macOS · Apple Silicon | Windows · x64 |
 | --- | --- | --- | --- |
-| 0.1.2 | Newest · prepared | Not published | Preview · not published |
-| 0.1.1 | Latest | [DMG](https://github.com/jzc9307/VELIN/releases/download/v0.1.1/VELIN-0.1.1-macOS-arm64.dmg) | Not available |
+| 0.2.0 | Newest · prepared | Not published | Preview · not published |
+| 0.1.2 | Latest | [DMG](https://github.com/jzc9307/VELIN/releases/download/v0.1.2/VELIN-0.1.2-macOS-arm64.dmg) | [EXE · preview](https://github.com/jzc9307/VELIN/releases/download/v0.1.2/VELIN-0.1.2-Windows-x64.exe) |
+| 0.1.1 | Published | [DMG](https://github.com/jzc9307/VELIN/releases/download/v0.1.1/VELIN-0.1.1-macOS-arm64.dmg) | Not available |
 | 0.1.0 | Local · archived | Not published | Not available |
 <!-- VERSIONS:END -->
 
 Every published version keeps its own macOS and available Windows links. Newest prepared versions have no invented public download URL. See [release history](docs/RELEASES.md) and [changelog](CHANGELOG.md).
 
+## New in v0.2.0
+
+- **Computer audio first.** Listen follows the interviewer; your own mic is a separate optional button.
+- **Local multilingual speech.** An optional model handles Malay, Mandarin and English, including experimental code-switching. [Setup and honest limits](docs/LANGUAGES.md).
+- **About me.** A dedicated background section and a guided, local introduction builder using only your facts.
+- **A mode for the moment.** Interview, Behavioral Interview, Coding Interview, System Design, Case Interview, Recruiter Screen, Recruiting, Team Meet and Lecture join the existing modes. Each mode keeps its own instructions, response language and files.
+- **A tighter assistant.** Less space between the toolbar and live transcript.
+
 ## Made for the moment
 
 | Feature | How it works |
 | --- | --- |
-| Listen → Enter → answer | Computer audio supplies the other side’s question; your microphone adds context. Nothing is automatically sent for an AI answer. |
+| Listen → Enter → answer | Computer audio supplies the other side’s question; the optional microphone adds your context. Nothing is automatically sent for an AI answer. |
 | Continuous local speech | Supported languages use Apple’s continuous local engine on macOS 27+. Earlier systems/languages use the legacy Apple Speech path, with on-device recognition required by default. |
 | Screen questions | Attach a screenshot, review its preview, then ask a vision-capable model. |
-| Personal context | Set your own instructions and add text, Markdown, JSON or text-based PDF documents. |
-| Conversation modes | General, Meeting, Coding, Study, Sales and Custom. |
+| Personal context | Save About me across modes; each mode has separate instructions, response language and context files (Mac also supports text PDFs). |
+| Conversation modes | General, Meeting, interview variants, System Design, Case Interview, Recruiter Screen, Recruiting, Team Meet, Lecture, Coding, Study, Sales and Custom. |
 | Notes and history | Search local sessions, generate/edit notes, import transcripts and export Markdown. |
 | Quiet presentation | Hide the Dock and menu-bar icons, recover through a shortcut, and request best-effort capture exclusion. |
 
@@ -112,7 +125,7 @@ For Windows, use **.NET SDK 10** and `python scripts/build-windows.py`. The self
 
 ### macOS
 
-Requires an Apple Silicon Mac, macOS 14+, Apple Command Line Tools or Xcode, and Python 3. The continuous macOS 27 speech path requires a macOS 27 SDK / Swift 6.4 toolchain; older toolchains compile the legacy path.
+Requires an Apple Silicon Mac, macOS 14+, Apple Command Line Tools or Xcode, Python 3.12+, and native CMake 3.22+ for the bundled local speech worker. The continuous macOS 27 speech path requires a macOS 27 SDK / Swift 6.4 toolchain; older toolchains compile the legacy path.
 
 ```bash
 xcode-select --install  # if the Apple developer tools are missing

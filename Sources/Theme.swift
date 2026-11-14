@@ -97,3 +97,15 @@ struct NavigationPress: ButtonStyle {
             .onChange(of: configuration.isPressed) { _, pressed in if pressed { NSHapticFeedbackManager.defaultPerformer.perform(.alignment, performanceTime: .now) } }
     }
 }
+
+// Sheets use a separate hosting root; apply the same native scroller policy there.
+struct HideNativeScrollbars: NSViewRepresentable {
+    final class Probe: NSView {
+        override func viewDidMoveToWindow() { super.viewDidMoveToWindow(); refresh() }
+        override func layout() { super.layout(); refresh() }
+        func refresh() { DispatchQueue.main.async { [weak self] in guard let root = self?.window?.contentView else { return }; self?.hide(in: root) } }
+        private func hide(in view: NSView) { if let scroll = view as? NSScrollView { scroll.hasVerticalScroller = false; scroll.hasHorizontalScroller = false; scroll.autohidesScrollers = true }; for child in view.subviews { hide(in: child) } }
+    }
+    func makeNSView(context: Context) -> Probe { Probe() }
+    func updateNSView(_ view: Probe, context: Context) { view.refresh() }
+}

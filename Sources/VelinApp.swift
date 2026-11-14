@@ -71,6 +71,7 @@ struct OverlayView: View {
                     .accessibilityValue(model.config.captureProtection ? "On" : "Off")
                     .help("Hidden mode hides the Dock and menu-bar icons and requests capture exclusion. Use ⌃⌥Space to reopen the bar; click the eye again to restore the icons.")
                 Button { model.toggleListening() } label: { HStack(spacing: 5) { Image(systemName: "waveform").font(.system(size: 14)); Text(model.startingAudio ? "Starting…" : model.recording ? clockText(model.elapsed) : "Listen").font(.system(size: 11, weight: .medium)).monospacedDigit() }.foregroundStyle(model.recording ? Ink.mint : Ink.muted) }.buttonStyle(IconPress()).disabled(model.startingAudio).help("Start / stop listening · ⌃⌥L")
+                Button { model.toggleMicrophone() } label: { Image(systemName: model.config.microphone ? "mic.fill" : "mic.slash").font(.system(size: 13)).foregroundStyle(model.config.microphone ? Ink.mint : Ink.muted) }.buttonStyle(IconPress()).disabled(model.startingAudio).help(model.config.microphone ? "Turn off your microphone" : "Add your microphone · optional").accessibilityLabel(model.config.microphone ? "Microphone on" : "Microphone off")
                 Menu { ForEach(AssistantMode.allCases) { mode in Button(mode.rawValue) { model.config.mode = mode; model.session.mode = mode; model.saveConfig() } } } label: { OverlayMenuLabel(title: model.config.mode.rawValue, icon: "square.grid.2x2") }.menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize().modifier(OverlayMenuChrome())
                 Menu { ForEach(model.config.profiles) { profile in Button("\(profile.name) · \(profile.provider.rawValue)") { model.config.activeProfileID = profile.id; model.saveConfig() } }; Divider(); Button("AI Connections…") { model.page = "AI Connections"; model.openMain() } } label: { OverlayMenuLabel(title: model.activeProfile?.provider.rawValue ?? "Connect AI", icon: "circle.hexagongrid") }.menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize().modifier(OverlayMenuChrome())
                 Spacer(minLength: 0)
@@ -81,8 +82,8 @@ struct OverlayView: View {
                 }
                 Button(action: close) { Image(systemName: "xmark").font(.system(size: 11)) }.buttonStyle(IconPress()).help("Hide assistant · ⌃⌥Space")
             }.foregroundStyle(Ink.muted).padding(.horizontal, 18).frame(height: 42)
-            }.frame(height: 120, alignment: .top).background(Ink.background.opacity(model.config.overlayOpacity))
-            if sectionState[0] { ListeningStatusView(model: model, compact: true).frame(height: model.audioWarning.isEmpty ? 178 : 206, alignment: .top).background(Ink.background.opacity(model.config.overlayOpacity)).transition(.opacity) }
+            }.frame(height: 110, alignment: .top).background(Ink.background.opacity(model.config.overlayOpacity))
+            if sectionState[0] { ListeningStatusView(model: model, compact: true).frame(height: model.audioWarning.isEmpty ? 148 : 176, alignment: .top).background(Ink.background.opacity(model.config.overlayOpacity)).transition(.opacity) }
             if let image = model.pendingImage, let nsImage = NSImage(data: image) {
                 Rectangle().fill(Ink.line).frame(height: 1)
                 HStack(spacing: 12) {

@@ -233,7 +233,7 @@ final class AudioCapture: NSObject, SCStreamOutput, SCStreamDelegate, @unchecked
 
     @MainActor func start(config: Configuration) async throws {
         guard config.microphone || config.systemAudio else { throw VelinError.message("Enable microphone or computer audio in Audio settings.") }
-        guard SFSpeechRecognizer.authorizationStatus() == .authorized else { throw VelinError.message("Allow Speech Recognition in Setup before listening.") }
+        guard config.speechBackend == "whisper" || SFSpeechRecognizer.authorizationStatus() == .authorized else { throw VelinError.message("Allow Speech Recognition in Setup before listening.") }
         captureGeneration = UUID(); receivedInputs = []; inputWarnings = [:]; warning(""); level(0); computerLevel(0)
         var issues: [String] = []
         sourceState("You", config.microphone ? "Starting…" : "Off")
@@ -255,6 +255,10 @@ final class AudioCapture: NSObject, SCStreamOutput, SCStreamDelegate, @unchecked
         for (index, issue) in issues.enumerated() { inputWarnings["startup\(index)"] = issue }
         warning(inputWarnings.sorted { $0.key < $1.key }.map(\.value).joined(separator: " "))
         rotateTimer = Timer.scheduledTimer(withTimeInterval: 45, repeats: true) { [weak self] _ in self?.microphone?.rotate(after: 0.4); self?.computer?.rotate(after: 0.4) }
+    }
+    @MainActor func setMicrophone(enabled: Bool, config: Configuration) async throws {
+        if enabled { if microphone == nil { try await startMicrophone(config) } }
+        else { stopMicrophone(); sourceState("You", "Off") }
     }
     @MainActor private func startMicrophone(_ config: Configuration) async throws {
         guard AVCaptureDevice.authorizationStatus(for: .audio) == .authorized else { throw VelinError.message("Allow Microphone in Audio & Permissions.") }
@@ -347,6 +351,10 @@ final class AudioCapture: NSObject, SCStreamOutput, SCStreamDelegate, @unchecked
     }
     @MainActor private func channel(_ source: String, _ config: Configuration) async throws -> any SpeechInput {
         let channel: any SpeechInput
+        if config.speechBackend == "whisper" {
+            sourceState(source, "Loading local multilingual model…")
+            channel = MultilingualSpeechChannel(source: source, modelPath: config.localModelPath, hint: config.mixedLanguageHint)
+        } else {
         #if compiler(>=6.4)
         if #available(macOS 27, *), SpeechTranscriber.isAvailable,
            let locale = await SpeechTranscriber.supportedLocale(equivalentTo: Locale(identifier: config.language)) {
@@ -358,6 +366,7 @@ final class AudioCapture: NSObject, SCStreamOutput, SCStreamDelegate, @unchecked
         #else
         channel = try SpeechChannel(source: source, locale: config.language, localOnly: config.localSpeechOnly)
         #endif
+        }
         channel.partial = partial; channel.final = final
         channel.failure = { [weak self] message in
             guard let self else { return }

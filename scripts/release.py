@@ -99,9 +99,11 @@ def package():
         metadata=json.loads(record.read_text());exe=build_dir/'VELIN.exe'
         if metadata.get('version')!=v or metadata.get('build')!=(ROOT/'BUILD_NUMBER').read_text().strip() or metadata.get('commit')!=run(['git','rev-parse','HEAD']):raise SystemExit('Rebuild Windows from this clean release commit.')
         if not exe.exists() or metadata.get('sha256')!=hashlib.sha256(exe.read_bytes()).hexdigest():raise SystemExit('Windows executable checksum mismatch.')
+        worker=build_dir/'VelinSpeech.exe'
+        if not worker.exists() or metadata.get('speech_worker_sha256')!=hashlib.sha256(worker.read_bytes()).hexdigest():raise SystemExit('Windows speech worker checksum mismatch.')
         shutil.copy2(exe,out/f'VELIN-{v}-Windows-x64.exe')
         with zipfile.ZipFile(out/f'VELIN-{v}-Windows-x64.zip','w',zipfile.ZIP_DEFLATED) as archive:
-            for name in ['VELIN.exe','WINDOWS.md','THIRD-PARTY-NOTICES.txt','LICENSE.txt']:archive.write(build_dir/name,'VELIN/'+name)
+            for name in ['VELIN.exe','VelinSpeech.exe','WHISPER-LICENSE.txt','WINDOWS.md','THIRD-PARTY-NOTICES.txt','LICENSE.txt']:archive.write(build_dir/name,'VELIN/'+name)
     sums=[]
     for p in sorted(out.iterdir()):
         if p.suffix in ('.zip','.dmg','.exe'):sums.append(hashlib.sha256(p.read_bytes()).hexdigest()+'  '+p.name)

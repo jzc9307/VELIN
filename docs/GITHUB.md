@@ -18,7 +18,7 @@ The user currently pushes from VS Code and uploads release files manually. Follo
 6. Mount the DMG read-only, verify VELIN.app signature and Applications shortcut, and unmount. Confirm the metadata and checksums. Developer ID notarization is not configured: the persistent local self-signed identity supports development continuity, not Apple verification or public distribution. Never export or commit its private key.
 7. Install/sign into GitHub CLI if needed. Inspect `python3 scripts/release.py publish --dry-run`. Then use `python3 scripts/release.py publish` when publication is authorized. This pushes main/tag without force, stages a draft, uploads absent assets, publishes Latest, verifies assets, and commits the real download catalog. Never overwrite a published version or force a historical tag.
 
-The 0.1.0 baseline is local and archived; 0.1.1 has a verified published macOS release. The next requested release is 0.1.2, including the Windows preview. No repository URL, download link or historical release is invented. The initial release notes are in release-history.json. Upload the current prepared version and preserve earlier local archives; future release requests use a patch.
+The 0.1.0 baseline is local and archived; 0.1.1 has a verified published macOS release. The 0.1.2 release is published for Mac and Windows. Version 0.2.0 adds local multilingual speech and per-mode personalization; Windows runtime verification is still pending. No repository URL, download link or historical release is invented. The initial release notes are in release-history.json. Upload the current prepared version and preserve earlier local archives; future release requests use a patch.
 
 ## GitHub appearance
 
